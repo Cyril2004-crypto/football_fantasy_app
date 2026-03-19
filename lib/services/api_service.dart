@@ -25,6 +25,26 @@ class ApiService {
     }
   }
 
+  // Make public GET request (no Firebase auth token), with optional custom headers
+  Future<Map<String, dynamic>> getPublic(
+    String endpoint, {
+    Map<String, String> headers = const {},
+  }) async {
+    try {
+      final response = await http.get(
+        Uri.parse(endpoint),
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+      );
+
+      return _handleResponse(response);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   // Make authenticated POST request
   Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> body) async {
     try {
@@ -95,8 +115,12 @@ class ApiService {
     } else if (response.statusCode == 500) {
       throw Exception('Server error. Please try again later');
     } else {
-      final errorBody = json.decode(response.body);
-      throw Exception(errorBody['message'] ?? 'Request failed with status: ${response.statusCode}');
+      try {
+        final errorBody = json.decode(response.body);
+        throw Exception(errorBody['message'] ?? 'Request failed with status: ${response.statusCode}');
+      } catch (_) {
+        throw Exception('Request failed with status: ${response.statusCode}');
+      }
     }
   }
 

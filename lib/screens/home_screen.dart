@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
+import '../models/match.dart';
+import '../services/api_service.dart';
+import '../services/auth_service.dart';
+import '../services/match_service.dart';
 import '../widgets/custom_button.dart';
 import 'login_screen.dart';
 import 'team_status_screen.dart';
@@ -112,13 +116,160 @@ class LeaguesTabScreen extends StatelessWidget {
   }
 }
 
-class FixturesTabScreen extends StatelessWidget {
+class FixturesTabScreen extends StatefulWidget {
   const FixturesTabScreen({super.key});
 
   @override
+  State<FixturesTabScreen> createState() => _FixturesTabScreenState();
+}
+
+class _FixturesTabScreenState extends State<FixturesTabScreen> {
+  late final MatchService _matchService;
+  late Future<List<Match>> _fixturesFuture;
+  int _selectedMatchday = 1;
+
+  static const String _footballDataApiToken = String.fromEnvironment(
+    'FOOTBALL_DATA_API_TOKEN',
+    defaultValue: 'fba6a71eaf714c289cf2782117f79d74',
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _matchService = MatchService(ApiService(AuthService()));
+    _fixturesFuture = _loadFixtures();
+  }
+
+  Future<List<Match>> _loadFixtures() {
+    return _matchService.getPremierLeagueMatchesByMatchday(
+      _selectedMatchday,
+      apiToken: _footballDataApiToken,
+    );
+  }
+
+  void _refresh() {
+    setState(() {
+      _fixturesFuture = _loadFixtures();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Fixtures - Coming Soon'),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Row(
+            children: [
+              Text(
+                'Matchweek',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  value: _selectedMatchday,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: List.generate(
+                    38,
+                    (index) => DropdownMenuItem<int>(
+                      value: index + 1,
+                      child: Text('Week ${index + 1}'),
+                    ),
+                  ),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _selectedMatchday = value;
+                      _fixturesFuture = _loadFixtures();
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: FutureBuilder<List<Match>>(
+            future: _fixturesFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 40, color: AppColors.error),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Failed to load EPL fixtures for matchweek $_selectedMatchday',
+                          style: Theme.of(context).textTheme.titleMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${snapshot.error}',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _refresh,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final fixtures = snapshot.data ?? const <Match>[];
+              if (fixtures.isEmpty) {
+                return Center(
+                  child: Text(
+                    'No fixtures found for matchweek $_selectedMatchday',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                );
+              }
+
+              return RefreshIndicator(
+                onRefresh: () async => _refresh(),
+                child: ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  itemCount: fixtures.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final match = fixtures[index];
+                    return Card(
+                      child: ListTile(
+                        title: Text('${match.homeTeamName} vs ${match.awayTeamName}'),
+                        subtitle: Text(
+                          '${match.kickoffTime.toLocal()}'.split('.').first,
+                        ),
+                        trailing: (match.homeScore != null && match.awayScore != null)
+                            ? Text('${match.homeScore} - ${match.awayScore}')
+                            : const Text('vs'),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -129,6 +280,10 @@ class ProfileTabScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final photoUrl = user?.photoUrl;
+    final photoUri = photoUrl != null ? Uri.tryParse(photoUrl) : null;
+    final hasPhoto = photoUri != null &&
+        (photoUri.scheme == 'http' || photoUri.scheme == 'https');
     
     return Center(
       child: Padding(
@@ -138,10 +293,8 @@ class ProfileTabScreen extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 50,
-              backgroundImage: user?.photoUrl != null
-                  ? NetworkImage(user!.photoUrl!)
-                  : null,
-              child: user?.photoUrl == null
+              backgroundImage: hasPhoto ? NetworkImage(photoUrl!) : null,
+              child: !hasPhoto
                   ? const Icon(Icons.person, size: 50)
                   : null,
             ),

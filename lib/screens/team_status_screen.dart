@@ -7,6 +7,9 @@ import '../constants/app_strings.dart';
 import '../utilities/currency_formatter.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/loading_indicator.dart';
+import 'create_league_screen.dart';
+import 'gameweek_points_screen.dart';
+import 'join_league_screen.dart';
 import 'pick_team_screen.dart';
 import 'transfers_screen.dart';
 
@@ -113,6 +116,13 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
                             label: 'Gameweek Points',
                             value: CurrencyFormatter.formatPoints(team.gameweekPoints),
                             color: AppColors.secondary,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => GameweekPointsScreen(team: team),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -208,7 +218,11 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () {
-                                // TODO: Implement create league
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const CreateLeagueScreen(),
+                                  ),
+                                );
                               },
                               child: const Text(AppStrings.createLeague),
                             ),
@@ -217,7 +231,11 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () {
-                                // TODO: Implement join league
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const JoinLeagueScreen(),
+                                  ),
+                                );
                               },
                               child: const Text(AppStrings.joinLeague),
                             ),
@@ -587,16 +605,18 @@ class _StatCard extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final VoidCallback? onTap;
 
   const _StatCard({
     required this.label,
     required this.value,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final content = Column(
       children: [
         Text(
           label,
@@ -613,6 +633,19 @@ class _StatCard extends StatelessWidget {
               ),
         ),
       ],
+    );
+
+    if (onTap == null) {
+      return content;
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: content,
+      ),
     );
   }
 }

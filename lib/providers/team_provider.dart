@@ -1,12 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+import '../config/app_config.dart';
 import '../models/team.dart';
 import '../models/player.dart';
+import '../services/points_calculator_service.dart';
 import '../services/team_service.dart';
 import '../utilities/mock_data.dart';
 
 class TeamProvider with ChangeNotifier {
   final TeamService _teamService;
+  final PointsCalculatorService _pointsCalculatorService =
+      PointsCalculatorService();
   
   Team? _team;
   bool _isLoading = false;
@@ -55,19 +59,19 @@ class TeamProvider with ChangeNotifier {
             .toList();
 
         final totalPrice = selectedPlayers.fold(0.0, (sum, p) => sum + p.price);
+        final totalPoints =
+            _pointsCalculatorService.calculateStoredTeamTotalPoints(selectedPlayers);
+        final gameweekPoints = _pointsCalculatorService
+            .calculateStoredTeamGameweekPoints(selectedPlayers);
         
         _team = Team(
           id: const Uuid().v4(),
           userId: 'local_user',
           name: teamName,
           players: selectedPlayers,
-          remainingBudget: 110.0 - totalPrice,
-          totalPoints: selectedPlayers.fold<int>(0, (int sum, Player player) {
-            return sum + player.points;
-          }),
-          gameweekPoints: selectedPlayers.fold<int>(0, (int sum, Player player) {
-            return sum + player.gameweekPoints;
-          }),
+          remainingBudget: AppConfig.teamBudget - totalPrice,
+          totalPoints: totalPoints,
+          gameweekPoints: gameweekPoints,
           createdAt: DateTime.now(),
         );
         _isLoading = false;
@@ -104,16 +108,16 @@ class TeamProvider with ChangeNotifier {
             .toList();
 
         final totalPrice = selectedPlayers.fold(0.0, (sum, p) => sum + p.price);
+        final totalPoints =
+            _pointsCalculatorService.calculateStoredTeamTotalPoints(selectedPlayers);
+        final gameweekPoints = _pointsCalculatorService
+            .calculateStoredTeamGameweekPoints(selectedPlayers);
         
         _team = _team!.copyWith(
           players: selectedPlayers,
-          remainingBudget: 110.0 - totalPrice,
-          totalPoints: selectedPlayers.fold<int>(0, (int sum, Player player) {
-            return sum + player.points;
-          }),
-          gameweekPoints: selectedPlayers.fold<int>(0, (int sum, Player player) {
-            return sum + player.gameweekPoints;
-          }),
+          remainingBudget: AppConfig.teamBudget - totalPrice,
+          totalPoints: totalPoints,
+          gameweekPoints: gameweekPoints,
           updatedAt: DateTime.now(),
         );
         _isLoading = false;

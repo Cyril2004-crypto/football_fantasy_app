@@ -2,6 +2,12 @@ class ApiEndpoints {
   // Base URL - Update this with your backend API URL
   static const String baseUrl = 'http://localhost:3000/api';
   
+  // External football API
+  static const String footballDataBaseUrl = 'https://api.football-data.org/v4';
+  static const String premierLeagueCompetition = '$footballDataBaseUrl/competitions/PL';
+  static String premierLeagueMatchesByMatchday(int matchday) =>
+      '$footballDataBaseUrl/competitions/PL/matches?matchday=$matchday';
+  
   // Authentication
   static const String register = '$baseUrl/auth/register';
   static const String login = '$baseUrl/auth/login';
