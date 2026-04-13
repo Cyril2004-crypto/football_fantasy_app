@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'firebase_options.dart';
 import 'constants/app_colors.dart';
 import 'constants/app_strings.dart';
+import 'config/app_config.dart';
 import 'services/auth_service.dart';
 import 'services/api_service.dart';
 import 'services/player_service.dart';
@@ -27,6 +29,20 @@ void main() async {
   } catch (e) {
     print('❌ Firebase initialization error: $e');
   }
+
+  if (AppConfig.supabaseEnabled) {
+    try {
+      await Supabase.initialize(
+        url: AppConfig.supabaseUrl,
+        anonKey: AppConfig.supabaseAnonKey,
+      );
+      print('✅ Supabase initialized successfully!');
+    } catch (e) {
+      print('❌ Supabase initialization error: $e');
+    }
+  } else {
+    print('ℹ️ Supabase skipped (SUPABASE_URL/SUPABASE_ANON_KEY missing).');
+  }
   
   runApp(const MyApp());
 }
@@ -38,9 +54,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // Initialize services
     final authService = AuthService();
-    final apiService = ApiService(authService);
-    final playerService = PlayerService(apiService);
-    final teamService = TeamService(apiService);
+    final playerService = PlayerService();
+    final teamService = TeamService(ApiService(authService));
 
     return MultiProvider(
       providers: [

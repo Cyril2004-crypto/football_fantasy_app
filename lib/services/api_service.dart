@@ -7,25 +7,7 @@ class ApiService {
 
   ApiService(this._authService);
 
-  // Make authenticated GET request
-  Future<Map<String, dynamic>> get(String endpoint) async {
-    try {
-      final token = await _authService.getIdToken();
-      final response = await http.get(
-        Uri.parse(endpoint),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-      );
-
-      return _handleResponse(response);
-    } catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  // Make public GET request (no Firebase auth token), with optional custom headers
+  // Make unauthenticated GET request for public third-party APIs.
   Future<Map<String, dynamic>> getPublic(
     String endpoint, {
     Map<String, String> headers = const {},
@@ -36,6 +18,24 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
           ...headers,
+        },
+      );
+
+      return _handleResponse(response);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // Make authenticated GET request
+  Future<Map<String, dynamic>> get(String endpoint) async {
+    try {
+      final token = await _authService.getIdToken();
+      final response = await http.get(
+        Uri.parse(endpoint),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
         },
       );
 
@@ -115,12 +115,8 @@ class ApiService {
     } else if (response.statusCode == 500) {
       throw Exception('Server error. Please try again later');
     } else {
-      try {
-        final errorBody = json.decode(response.body);
-        throw Exception(errorBody['message'] ?? 'Request failed with status: ${response.statusCode}');
-      } catch (_) {
-        throw Exception('Request failed with status: ${response.statusCode}');
-      }
+      final errorBody = json.decode(response.body);
+      throw Exception(errorBody['message'] ?? 'Request failed with status: ${response.statusCode}');
     }
   }
 

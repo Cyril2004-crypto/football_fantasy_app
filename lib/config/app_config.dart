@@ -2,10 +2,27 @@ class AppConfig {
   // API Configuration
   static const String apiBaseUrl = 'http://localhost:3000/api';
   static const Duration apiTimeout = Duration(seconds: 30);
+
+  // Supabase Configuration (provided via --dart-define or dart-define-from-file)
+  static const String supabaseUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+  static const String supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
+  static const bool supabaseEnabled =
+      supabaseUrl != '' && supabaseAnonKey != '';
+  static const String supabaseSyncFunctionUrl = String.fromEnvironment(
+    'SUPABASE_SYNC_FUNCTION_URL',
+    defaultValue: '',
+  );
+  static const bool supabaseSyncEnabled = supabaseSyncFunctionUrl != '';
+
+  static String get currentFootballSeasonLabel {
+    final now = DateTime.now();
+    final startYear = now.month >= 7 ? now.year : now.year - 1;
+    return '$startYear/${startYear + 1}';
+  }
   
   // App Configuration
   static const String appVersion = '1.0.0';
-  static const int teamBudget = 110; // Default budget in millions
+  static const int teamBudget = 125; // Default budget in millions
   static const int maxPlayersPerTeam = 15;
   static const int maxPlayersFromSameClub = 3;
   

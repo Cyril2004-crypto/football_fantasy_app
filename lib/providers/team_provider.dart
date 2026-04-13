@@ -1,5 +1,10 @@
+import 'dart:convert';
+
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+
 import '../config/app_config.dart';
 import '../models/team.dart';
 import '../models/player.dart';
@@ -31,12 +36,17 @@ class TeamProvider with ChangeNotifier {
       notifyListeners();
 
       _team = await _teamService.getMyTeam();
+      if (_team != null) {
+        await _saveTeamToCache(_team!);
+      } else {
+        _team = await _loadTeamFromCache();
+      }
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      // Silently fail without showing error for loading
+      _team = await _loadTeamFromCache();
       _isLoading = false;
-      _errorMessage = null;
+      _errorMessage = _team == null ? e.toString() : null;
       notifyListeners();
     }
   }
@@ -48,41 +58,46 @@ class TeamProvider with ChangeNotifier {
       notifyListeners();
 
       _team = await _teamService.createTeam(teamName, playerIds);
+      await _saveTeamToCache(_team!);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      // Fallback: Create team locally when API is unavailable
       try {
-        final mockPlayers = MockData.getMockPlayers();
-        final selectedPlayers = mockPlayers
+        final selectedPlayers = MockData.getMockPlayers()
             .where((p) => playerIds.contains(p.id))
             .toList();
 
-        final totalPrice = selectedPlayers.fold(0.0, (sum, p) => sum + p.price);
-        final totalPoints =
-            _pointsCalculatorService.calculateStoredTeamTotalPoints(selectedPlayers);
-        final gameweekPoints = _pointsCalculatorService
-            .calculateStoredTeamGameweekPoints(selectedPlayers);
-        
+        final totalPrice = selectedPlayers.fold<double>(
+          0.0,
+          (sum, p) => sum + p.price,
+        );
+
         _team = Team(
           id: const Uuid().v4(),
-          userId: 'local_user',
+          userId: firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? 'local_user',
           name: teamName,
           players: selectedPlayers,
           remainingBudget: AppConfig.teamBudget - totalPrice,
-          totalPoints: totalPoints,
-          gameweekPoints: gameweekPoints,
+          totalPoints: _pointsCalculatorService
+              .calculateStoredTeamTotalPoints(selectedPlayers),
+          gameweekPoints: _pointsCalculatorService
+              .calculateStoredTeamGameweekPoints(selectedPlayers),
           createdAt: DateTime.now(),
         );
+
+        await _saveTeamToCache(_team!);
         _isLoading = false;
         _errorMessage = null;
         notifyListeners();
-      } catch (fallbackError) {
-        _isLoading = false;
-        _errorMessage = fallbackError.toString();
-        notifyListeners();
-        rethrow;
+        return;
+      } catch (_) {
+        // Fall through to original error handling.
       }
+
+      _isLoading = false;
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
     }
   }
 
@@ -95,45 +110,77 @@ class TeamProvider with ChangeNotifier {
       notifyListeners();
 
       _team = await _teamService.updateTeam(_team!.id, playerIds);
+      await _saveTeamToCache(_team!);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      // Fallback: Update team locally when API is unavailable
       try {
-        if (_team == null) throw Exception('Team not found');
-        
-        final mockPlayers = MockData.getMockPlayers();
-        final selectedPlayers = mockPlayers
+        if (_team == null) {
+          throw Exception('Team not found');
+        }
+
+        final selectedPlayers = MockData.getMockPlayers()
             .where((p) => playerIds.contains(p.id))
             .toList();
 
-        final totalPrice = selectedPlayers.fold(0.0, (sum, p) => sum + p.price);
-        final totalPoints =
-            _pointsCalculatorService.calculateStoredTeamTotalPoints(selectedPlayers);
-        final gameweekPoints = _pointsCalculatorService
-            .calculateStoredTeamGameweekPoints(selectedPlayers);
-        
+        final totalPrice = selectedPlayers.fold<double>(
+          0.0,
+          (sum, p) => sum + p.price,
+        );
+
         _team = _team!.copyWith(
           players: selectedPlayers,
           remainingBudget: AppConfig.teamBudget - totalPrice,
-          totalPoints: totalPoints,
-          gameweekPoints: gameweekPoints,
+          totalPoints: _pointsCalculatorService
+              .calculateStoredTeamTotalPoints(selectedPlayers),
+          gameweekPoints: _pointsCalculatorService
+              .calculateStoredTeamGameweekPoints(selectedPlayers),
           updatedAt: DateTime.now(),
         );
+
+        await _saveTeamToCache(_team!);
         _isLoading = false;
         _errorMessage = null;
         notifyListeners();
-      } catch (fallbackError) {
-        _isLoading = false;
-        _errorMessage = fallbackError.toString();
-        notifyListeners();
-        rethrow;
+        return;
+      } catch (_) {
+        // Fall through to original error handling.
       }
+
+      _isLoading = false;
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
     }
   }
 
   void clearTeam() {
     _team = null;
+    _clearTeamFromCache();
     notifyListeners();
+  }
+
+  String _cacheKey() {
+    final uid = firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? 'guest';
+    return 'team_cache_$uid';
+  }
+
+  Future<void> _saveTeamToCache(Team team) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_cacheKey(), jsonEncode(team.toJson()));
+  }
+
+  Future<Team?> _loadTeamFromCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_cacheKey());
+    if (raw == null || raw.isEmpty) return null;
+
+    final json = jsonDecode(raw) as Map<String, dynamic>;
+    return Team.fromJson(json);
+  }
+
+  Future<void> _clearTeamFromCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_cacheKey());
   }
 }

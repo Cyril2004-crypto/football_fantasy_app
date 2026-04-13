@@ -80,23 +80,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> signInWithApple() async {
-    try {
-      _status = AuthStatus.loading;
-      _errorMessage = null;
-      notifyListeners();
-
-      _user = await _authService.signInWithApple();
-      _status = AuthStatus.authenticated;
-      notifyListeners();
-    } catch (e) {
-      _status = AuthStatus.error;
-      _errorMessage = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
   Future<void> signOut() async {
     try {
       await _authService.signOut();

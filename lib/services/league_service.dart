@@ -83,18 +83,4 @@ class LeagueService {
       throw Exception('Failed to fetch public leagues: $e');
     }
   }
-
-  // Get EPL competition details from football-data.org
-  Future<Map<String, dynamic>> getPremierLeagueCompetition({String? apiToken}) async {
-    try {
-      return await _apiService.getPublic(
-        ApiEndpoints.premierLeagueCompetition,
-        headers: {
-          if (apiToken != null && apiToken.isNotEmpty) 'X-Auth-Token': apiToken,
-        },
-      );
-    } catch (e) {
-      throw Exception('Failed to fetch Premier League competition: $e');
-    }
-  }
 }

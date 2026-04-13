@@ -1,137 +1,133 @@
-import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/match.dart';
-import '../constants/api_endpoints.dart';
-import 'api_service.dart';
+import '../config/app_config.dart';
 
 class MatchService {
-  final ApiService _apiService;
+  final SupabaseClient _client = Supabase.instance.client;
 
-  MatchService(this._apiService);
-
-  // Get live matches
   Future<List<Match>> getLiveMatches() async {
     try {
-      final response = await _apiService.get(ApiEndpoints.liveMatches);
-      final matches = (response['data'] as List)
-          .map((json) => Match.fromJson(json as Map<String, dynamic>))
-          .toList();
-      return matches;
+      return await _fetchMatches(statusFilter: MatchStatus.live);
     } catch (e) {
       throw Exception('Failed to fetch live matches: $e');
     }
   }
 
-  // Get upcoming matches
   Future<List<Match>> getUpcomingMatches() async {
     try {
-      final response = await _apiService.get(ApiEndpoints.upcomingMatches);
-      final matches = (response['data'] as List)
-          .map((json) => Match.fromJson(json as Map<String, dynamic>))
-          .toList();
-      return matches;
+      return await _fetchMatches(statusFilter: MatchStatus.scheduled);
     } catch (e) {
       throw Exception('Failed to fetch upcoming matches: $e');
     }
   }
 
-  // Get completed matches
   Future<List<Match>> getCompletedMatches() async {
     try {
-      final response = await _apiService.get(ApiEndpoints.completedMatches);
-      final matches = (response['data'] as List)
-          .map((json) => Match.fromJson(json as Map<String, dynamic>))
-          .toList();
-      return matches;
+      return await _fetchMatches(statusFilter: MatchStatus.completed);
     } catch (e) {
       throw Exception('Failed to fetch completed matches: $e');
     }
   }
 
-  // Get match by ID
   Future<Match> getMatchById(String id) async {
     try {
-      final response = await _apiService.get(ApiEndpoints.matchById(id));
-      return Match.fromJson(response['data'] as Map<String, dynamic>);
+      final matches = await _fetchMatches(matchExternalId: id);
+      if (matches.isEmpty) {
+        throw Exception('Match not found');
+      }
+      return matches.first;
     } catch (e) {
       throw Exception('Failed to fetch match: $e');
     }
   }
 
-  // Get matches by gameweek
   Future<List<Match>> getMatchesByGameweek(int gameweek) async {
     try {
-      final response = await _apiService.get('${ApiEndpoints.matches}?gameweek=$gameweek');
-      final matches = (response['data'] as List)
-          .map((json) => Match.fromJson(json as Map<String, dynamic>))
-          .toList();
-      return matches;
+      return await _fetchMatches(gameweek: gameweek);
     } catch (e) {
       throw Exception('Failed to fetch matches by gameweek: $e');
     }
   }
 
-  // Get EPL fixtures from football-data.org by matchday
   Future<List<Match>> getPremierLeagueMatchesByMatchday(
     int matchday, {
     String? apiToken,
+    int competitionId = 2021,
   }) async {
     try {
-      if (apiToken == null || apiToken.isEmpty) {
-        throw Exception(
-          'Missing FOOTBALL_DATA_API_TOKEN. Run with --dart-define=FOOTBALL_DATA_API_TOKEN=YOUR_TOKEN',
-        );
-      }
-
-      final endpoint = ApiEndpoints.premierLeagueMatchesByMatchday(matchday);
-      final headers = {
-        'X-Auth-Token': apiToken,
-      };
-
-      Map<String, dynamic> response;
-      try {
-        response = await _apiService.getPublic(endpoint, headers: headers);
-      } catch (e) {
-        if (!kIsWeb) rethrow;
-
-        final proxiedEndpoint =
-            'https://corsproxy.io/?${Uri.encodeComponent(endpoint)}';
-        try {
-          response = await _apiService.getPublic(proxiedEndpoint, headers: headers);
-        } catch (_) {
-          throw Exception(
-            'Web request blocked/failed (CORS or invalid token). Verify token and rerun with --dart-define=FOOTBALL_DATA_API_TOKEN=YOUR_TOKEN',
-          );
-        }
-      }
-
-      final matchesJson = (response['matches'] as List<dynamic>? ?? const []);
-
-      return matchesJson.map((item) {
-        final json = item as Map<String, dynamic>;
-        final homeTeam = json['homeTeam'] as Map<String, dynamic>? ?? const {};
-        final awayTeam = json['awayTeam'] as Map<String, dynamic>? ?? const {};
-        final score = json['score'] as Map<String, dynamic>? ?? const {};
-        final fullTime = score['fullTime'] as Map<String, dynamic>? ?? const {};
-        final statusRaw = (json['status'] as String? ?? 'SCHEDULED').toUpperCase();
-
-        return Match(
-          id: (json['id']?.toString() ?? ''),
-          homeTeamId: (homeTeam['id']?.toString() ?? ''),
-          homeTeamName: (homeTeam['name'] as String? ?? 'Home Team'),
-          awayTeamId: (awayTeam['id']?.toString() ?? ''),
-          awayTeamName: (awayTeam['name'] as String? ?? 'Away Team'),
-          homeScore: fullTime['home'] as int?,
-          awayScore: fullTime['away'] as int?,
-          status: _mapFootballDataStatus(statusRaw),
-          kickoffTime: DateTime.tryParse(json['utcDate'] as String? ?? '') ?? DateTime.now(),
-          gameweek: json['matchday'] as int? ?? matchday,
-          venue: (json['venue'] as String?),
-        );
-      }).toList();
+      return await _fetchMatches(
+        gameweek: matchday,
+        competitionExternalId: competitionId.toString(),
+      );
     } catch (e) {
-      throw Exception('Failed to fetch EPL matchday $matchday fixtures: $e');
+      throw Exception(
+        'Failed to fetch competition $competitionId matchday $matchday fixtures: $e',
+      );
     }
+  }
+
+  Future<List<Match>> _fetchMatches({
+    int? gameweek,
+    String? matchExternalId,
+    MatchStatus? statusFilter,
+    String? competitionExternalId,
+  }) async {
+    var query = _client.from('fd_fixtures').select('id, external_id, competition_id, season, gameweek, utc_kickoff, status, home_team_id, away_team_id, home_score, away_score, venue');
+
+    if (gameweek != null) {
+      query = query.eq('gameweek', gameweek);
+    }
+    if (matchExternalId != null) {
+      query = query.eq('external_id', matchExternalId);
+    }
+
+    final competitionRow = await _client
+        .from('fd_competitions')
+        .select('id')
+        .eq('provider', 'football-data')
+        .eq('external_id', competitionExternalId ?? '2021')
+        .maybeSingle();
+
+    if (competitionRow != null) {
+      query = query.eq('competition_id', competitionRow['id']);
+    }
+
+    query = query.eq('season', AppConfig.currentFootballSeasonLabel);
+
+    final rows = await query.eq('provider', 'football-data').order('utc_kickoff');
+    if ((rows as List).isEmpty) return const <Match>[];
+
+    final teamRows = await _client.from('fd_teams').select('id, external_id, name').eq('provider', 'football-data');
+    final teamsById = <String, Map<String, dynamic>>{};
+    for (final row in teamRows as List<dynamic>) {
+      final data = row as Map<String, dynamic>;
+      teamsById[data['id'].toString()] = data;
+    }
+
+    return (rows as List<dynamic>).map((row) {
+      final data = row as Map<String, dynamic>;
+      final homeTeam = teamsById[data['home_team_id'].toString()];
+      final awayTeam = teamsById[data['away_team_id'].toString()];
+      final status = _mapFootballDataStatus((data['status'] as String? ?? 'SCHEDULED').toUpperCase());
+      if (statusFilter != null && status != statusFilter) {
+        return null;
+      }
+
+      return Match(
+        id: data['external_id'].toString(),
+        homeTeamId: homeTeam?['external_id']?.toString() ?? data['home_team_id'].toString(),
+        homeTeamName: homeTeam?['name'] as String? ?? 'Home Team',
+        awayTeamId: awayTeam?['external_id']?.toString() ?? data['away_team_id'].toString(),
+        awayTeamName: awayTeam?['name'] as String? ?? 'Away Team',
+        homeScore: data['home_score'] as int?,
+        awayScore: data['away_score'] as int?,
+        status: status,
+        kickoffTime: DateTime.tryParse(data['utc_kickoff'] as String? ?? '') ?? DateTime.now(),
+        gameweek: data['gameweek'] as int? ?? 0,
+        venue: data['venue'] as String?,
+      );
+    }).whereType<Match>().toList();
   }
 
   MatchStatus _mapFootballDataStatus(String status) {

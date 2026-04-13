@@ -1,26 +1,21 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../models/user.dart';
+import 'supabase_service.dart';
 
 class AuthService {
   final firebase_auth.FirebaseAuth _firebaseAuth = firebase_auth.FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email'], // Only request email scope to avoid People API requirement
+  static const String _googleWebClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+    defaultValue:
+        '811534522991-4gub8ofhl2k14bogkgfm5ulri89h9f5r.apps.googleusercontent.com',
   );
 
-  bool get _isGoogleSignInSupported {
-    if (kIsWeb) return true;
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-      case TargetPlatform.iOS:
-      case TargetPlatform.macOS:
-        return true;
-      default:
-        return false;
-    }
-  }
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: const ['email'],
+    clientId: _googleWebClientId,
+  );
+  final SupabaseService _supabaseService = SupabaseService();
 
   // Get current user
   User? get currentUser {
@@ -59,6 +54,13 @@ class AuthService {
         email: email,
         password: password,
       );
+
+      await _supabaseService.syncFirebaseUser(
+        firebaseUid: credential.user!.uid,
+        email: credential.user!.email ?? email,
+        firebaseIdToken: (await credential.user!.getIdToken()) ?? '',
+        displayName: credential.user!.displayName,
+      );
       
       final firebaseUser = credential.user!;
       return User(
@@ -83,6 +85,12 @@ class AuthService {
       );
       
       await credential.user?.updateDisplayName(displayName);
+      await _supabaseService.syncFirebaseUser(
+        firebaseUid: credential.user!.uid,
+        email: credential.user!.email ?? email,
+        firebaseIdToken: (await credential.user!.getIdToken()) ?? '',
+        displayName: displayName,
+      );
       
       final firebaseUser = credential.user!;
       return User(
@@ -101,81 +109,31 @@ class AuthService {
   // Sign in with Google
   Future<User> signInWithGoogle() async {
     try {
-      if (!_isGoogleSignInSupported) {
-        throw Exception('Google Sign-In is not supported on this platform');
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        throw Exception('Google sign in was cancelled');
       }
 
-      // Use different auth flow for web vs mobile
-      if (kIsWeb) {
-        // For web, use Firebase Auth popup directly (avoids deprecated google_sign_in method)
-        final googleProvider = firebase_auth.GoogleAuthProvider();
-        googleProvider.addScope('email');
-        googleProvider.addScope('profile');
-        
-        final userCredential = await _firebaseAuth.signInWithPopup(googleProvider);
-        final firebaseUser = userCredential.user!;
-        
-        return User(
-          id: firebaseUser.uid,
-          email: firebaseUser.email ?? '',
-          displayName: firebaseUser.displayName,
-          photoUrl: firebaseUser.photoURL,
-          createdAt: firebaseUser.metadata.creationTime ?? DateTime.now(),
-          lastLogin: firebaseUser.metadata.lastSignInTime,
-        );
-      } else {
-        // For mobile, use google_sign_in package
-        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-        if (googleUser == null) {
-          throw Exception('Google sign in was cancelled');
-        }
-
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        final credential = firebase_auth.GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-
-        final userCredential = await _firebaseAuth.signInWithCredential(credential);
-        final firebaseUser = userCredential.user!;
-        
-        return User(
-          id: firebaseUser.uid,
-          email: firebaseUser.email ?? '',
-          displayName: firebaseUser.displayName,
-          photoUrl: firebaseUser.photoURL,
-          createdAt: firebaseUser.metadata.creationTime ?? DateTime.now(),
-          lastLogin: firebaseUser.metadata.lastSignInTime,
-        );
-      }
-    } catch (e) {
-      throw _handleAuthException(e);
-    }
-  }
-
-  // Sign in with Apple
-  Future<User> signInWithApple() async {
-    try {
-      final appleCredential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = firebase_auth.GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
 
-      final oauthCredential = firebase_auth.OAuthProvider('apple.com').credential(
-        idToken: appleCredential.identityToken,
-        accessToken: appleCredential.authorizationCode,
-      );
-
-      final userCredential = await _firebaseAuth.signInWithCredential(oauthCredential);
+      final userCredential = await _firebaseAuth.signInWithCredential(credential);
       final firebaseUser = userCredential.user!;
+
+      await _supabaseService.syncFirebaseUser(
+        firebaseUid: firebaseUser.uid,
+        email: firebaseUser.email ?? '',
+        firebaseIdToken: (await firebaseUser.getIdToken()) ?? '',
+        displayName: firebaseUser.displayName,
+      );
       
       return User(
         id: firebaseUser.uid,
         email: firebaseUser.email ?? '',
-        displayName: firebaseUser.displayName ?? 
-            '${appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}'.trim(),
+        displayName: firebaseUser.displayName,
         photoUrl: firebaseUser.photoURL,
         createdAt: firebaseUser.metadata.creationTime ?? DateTime.now(),
         lastLogin: firebaseUser.metadata.lastSignInTime,
@@ -187,10 +145,10 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
-    await _firebaseAuth.signOut();
-    if (_isGoogleSignInSupported) {
-      await _googleSignIn.signOut();
-    }
+    await Future.wait([
+      _firebaseAuth.signOut(),
+      _googleSignIn.signOut(),
+    ]);
   }
 
   // Reset password

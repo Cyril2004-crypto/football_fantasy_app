@@ -20,7 +20,13 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
     if (gameweek == _referenceGameweek) {
       return player.gameweekPoints;
     }
-    return 0;
+
+    // Fallback until full per-gameweek stats are connected to backend.
+    final seasonAverage = (player.points / 38).round();
+    final varianceSeed = player.id.hashCode + gameweek;
+    final variance = (varianceSeed % 5) - 2; // -2..+2 deterministic variation
+    final estimated = seasonAverage + variance;
+    return estimated < 0 ? 0 : estimated;
   }
 
   @override
@@ -82,7 +88,7 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      'Detailed local data is currently available for GW $_referenceGameweek.',
+                      'Using estimated points for this gameweek. Detailed local data is currently available for GW $_referenceGameweek.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppColors.textSecondary,
                           ),

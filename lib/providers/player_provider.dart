@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/player.dart';
 import '../services/player_service.dart';
-import '../utilities/mock_data.dart';
 
 class PlayerProvider with ChangeNotifier {
   final PlayerService _playerService;
@@ -33,11 +32,10 @@ class PlayerProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      // Use mock data as fallback when API is unavailable
-      _players = MockData.getMockPlayers();
-      _filteredPlayers = _players;
+      _players = [];
+      _filteredPlayers = [];
       _isLoading = false;
-      _errorMessage = null; // Don't show error, just use mock data
+      _errorMessage = e.toString();
       notifyListeners();
     }
   }
@@ -53,13 +51,10 @@ class PlayerProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      // Use mock data filtered by position as fallback
-      final mockPlayers = MockData.getMockPlayers();
-      _filteredPlayers = mockPlayers
-          .where((p) => p.position == position)
-          .toList();
+      _players = [];
+      _filteredPlayers = [];
       _isLoading = false;
-      _errorMessage = null;
+      _errorMessage = e.toString();
       notifyListeners();
     }
   }

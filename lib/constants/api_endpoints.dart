@@ -1,12 +1,22 @@
 class ApiEndpoints {
   // Base URL - Update this with your backend API URL
   static const String baseUrl = 'http://localhost:3000/api';
-  
-  // External football API
+
+  // football-data.org
   static const String footballDataBaseUrl = 'https://api.football-data.org/v4';
-  static const String premierLeagueCompetition = '$footballDataBaseUrl/competitions/PL';
   static String premierLeagueMatchesByMatchday(int matchday) =>
       '$footballDataBaseUrl/competitions/PL/matches?matchday=$matchday';
+    static String competitionMatchesByMatchday(int competitionId, int matchday) =>
+      '$footballDataBaseUrl/competitions/$competitionId/matches?matchday=$matchday';
+  
+  // Sportmonks
+  static const String sportmonksBaseUrl = 'https://api.sportmonks.com/v3/football';
+  static const String sportmonksInplayLivescores =
+    '$sportmonksBaseUrl/livescores/inplay?include=participants;scores;events.type;events.player;league;season;round;state';
+  static String sportmonksFixtureMatchCentre(int fixtureId) =>
+    '$sportmonksBaseUrl/fixtures/$fixtureId?include=participants;scores;events.type;events.player;events.relatedplayer;lineups.details.type;statistics.type';
+  static String sportmonksFixtureXgMatch(int fixtureId) =>
+    '$sportmonksBaseUrl/fixtures/$fixtureId/xg?include=participants;lineups.details.type';
   
   // Authentication
   static const String register = '$baseUrl/auth/register';

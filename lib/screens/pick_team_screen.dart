@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' hide ErrorWidget;
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/player.dart';
 import '../providers/player_provider.dart';
@@ -9,7 +9,7 @@ import '../config/app_config.dart';
 import '../utilities/currency_formatter.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/loading_indicator.dart';
-import '../widgets/error_widget.dart' as custom_error;
+import '../widgets/error_widget.dart';
 
 class PickTeamScreen extends StatefulWidget {
   const PickTeamScreen({super.key});
@@ -229,7 +229,7 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
           }
 
           if (playerProvider.errorMessage != null) {
-            return custom_error.ErrorWidget(
+            return AppErrorWidget(
               message: playerProvider.errorMessage ?? 'Error loading players',
               onRetry: () => playerProvider.loadAllPlayers(),
             );

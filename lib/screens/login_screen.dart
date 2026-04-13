@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../constants/app_colors.dart';
@@ -22,18 +21,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-
-  bool get _isGoogleSignInSupported {
-    if (kIsWeb) return true;
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-      case TargetPlatform.iOS:
-      case TargetPlatform.macOS:
-        return true;
-      default:
-        return false;
-    }
-  }
 
   @override
   void dispose() {
@@ -79,32 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final authProvider = context.read<AuthProvider>();
       await authProvider.signInWithGoogle();
-
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _handleAppleSignIn() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final authProvider = context.read<AuthProvider>();
-      await authProvider.signInWithApple();
 
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -206,24 +167,13 @@ class _LoginScreenState extends State<LoginScreen> {
                               ],
                             ),
                             const SizedBox(height: 16),
-                            if (_isGoogleSignInSupported)
-                              CustomButton(
-                                text: AppStrings.signInWithGoogle,
-                                onPressed: _isLoading ? null : _handleGoogleSignIn,
-                                backgroundColor: Colors.white,
-                                textColor: AppColors.textPrimary,
-                                icon: Icons.g_mobiledata,
-                              ),
-                            const SizedBox(height: 12),
-                            if (!defaultTargetPlatform.toString().contains('android') && 
-                                !defaultTargetPlatform.toString().contains('web'))
-                              CustomButton(
-                                text: 'Sign in with Apple',
-                                onPressed: _isLoading ? null : _handleAppleSignIn,
-                                backgroundColor: Colors.black,
-                                textColor: Colors.white,
-                                icon: Icons.apple,
-                              ),
+                            CustomButton(
+                              text: AppStrings.signInWithGoogle,
+                              onPressed: _isLoading ? null : _handleGoogleSignIn,
+                              backgroundColor: Colors.white,
+                              textColor: AppColors.textPrimary,
+                              icon: Icons.g_mobiledata,
+                            ),
                             const SizedBox(height: 24),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
