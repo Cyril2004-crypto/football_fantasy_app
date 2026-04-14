@@ -12,9 +12,11 @@ class ApiEndpoints {
   // Sportmonks
   static const String sportmonksBaseUrl = 'https://api.sportmonks.com/v3/football';
   static const String sportmonksInplayLivescores =
-    '$sportmonksBaseUrl/livescores/inplay?include=participants;scores;events.type;events.player;league;season;round;state';
+    '$sportmonksBaseUrl/livescores/inplay?include=participants;scores;periods;events;league.country;round';
   static String sportmonksFixtureMatchCentre(int fixtureId) =>
     '$sportmonksBaseUrl/fixtures/$fixtureId?include=participants;scores;events.type;events.player;events.relatedplayer;lineups.details.type;statistics.type';
+  static String sportmonksFixtureNews(int fixtureId) =>
+    '$sportmonksBaseUrl/fixtures/$fixtureId?include=prematchNews.lines;postmatchNews.lines;participants;league;venue;state;scores;events.type';
   static String sportmonksFixtureXgMatch(int fixtureId) =>
     '$sportmonksBaseUrl/fixtures/$fixtureId/xg?include=participants;lineups.details.type';
   

@@ -10,6 +10,7 @@ import '../constants/app_strings.dart';
 import '../models/league.dart';
 import '../models/match.dart';
 import '../models/player.dart';
+import '../models/team.dart';
 import '../services/match_service.dart';
 import '../widgets/custom_button.dart';
 import 'login_screen.dart';
@@ -17,6 +18,8 @@ import 'team_status_screen.dart';
 import 'create_league_screen.dart';
 import 'join_league_screen.dart';
 import 'league_details_screen.dart';
+import 'livescore_screen.dart';
+import 'news_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,7 +42,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
@@ -93,8 +99,8 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
-    final teamProvider = context.watch<TeamProvider>();
+    final displayName = context.select<AuthProvider, String?>((provider) => provider.user?.displayName);
+    final team = context.select<TeamProvider, Team?>((provider) => provider.team);
     
     return Scaffold(
       appBar: AppBar(
@@ -121,7 +127,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                     ),
                   ),
                   Text(
-                    user?.displayName ?? 'User',
+                    displayName ?? 'User',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: AppColors.textLight,
                       fontWeight: FontWeight.bold,
@@ -131,8 +137,50 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
               ),
             ),
 
+            // Feature Shortcuts
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildShortcutCard(
+                      context,
+                      title: 'Live Scores',
+                      subtitle: 'In-play updates',
+                      icon: Icons.live_tv,
+                      color: AppColors.accent,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const LiveScoreScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildShortcutCard(
+                      context,
+                      title: 'News',
+                      subtitle: 'Latest match updates',
+                      icon: Icons.article_outlined,
+                      color: AppColors.secondary,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const NewsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             // Quick Stats
-            if (teamProvider.team != null)
+            if (team != null)
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -151,7 +199,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                           child: _buildStatCard(
                             context,
                             'Points',
-                            '${teamProvider.team!.totalPoints}',
+                            '${team!.totalPoints}',
                             Icons.star_rounded,
                             AppColors.secondary,
                           ),
@@ -161,7 +209,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                           child: _buildStatCard(
                             context,
                             'Gameweek',
-                            '${teamProvider.team!.gameweekPoints}',
+                            '${team.gameweekPoints}',
                             Icons.trending_up,
                             AppColors.accent,
                           ),
@@ -171,7 +219,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                           child: _buildStatCard(
                             context,
                             'Bank',
-                            '£${teamProvider.team!.remainingBudget.toStringAsFixed(1)}m',
+                            '£${team.remainingBudget.toStringAsFixed(1)}m',
                             Icons.account_balance_wallet,
                             AppColors.info,
                           ),
@@ -181,11 +229,11 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                     const SizedBox(height: 12),
                     // Squad Composition
                     Text(
-                      'Squad (${teamProvider.team!.players.length}/15)',
+                      'Squad (${team.players.length}/15)',
                       style: Theme.of(context).textTheme.labelMedium,
                     ),
                     const SizedBox(height: 8),
-                    _buildSquadComposition(context, teamProvider.team!.players),
+                    _buildSquadComposition(context, team.players),
                   ],
                 ),
               ),
@@ -238,17 +286,13 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                       }
 
                       final matches = snapshot.data!.take(5).toList();
-                      return SizedBox(
-                        height: 320,
-                        child: ListView.separated(
-                          scrollDirection: Axis.vertical,
-                          itemCount: matches.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
-                          itemBuilder: (context, index) {
-                            final match = matches[index];
-                            return _buildMatchCard(context, match);
-                          },
-                        ),
+                      return Column(
+                        children: [
+                          for (var i = 0; i < matches.length; i++) ...[
+                            _buildMatchCard(context, matches[i]),
+                            if (i < matches.length - 1) const SizedBox(height: 8),
+                          ],
+                        ],
                       );
                     },
                   ),
@@ -520,6 +564,48 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildShortcutCard(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.35)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }
