@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
+import '../providers/team_provider.dart';
 import '../services/auth_service.dart';
 import '../services/league_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
 import '../models/league.dart';
 import '../models/match.dart';
+import '../models/player.dart';
 import '../services/match_service.dart';
 import '../widgets/custom_button.dart';
 import 'login_screen.dart';
@@ -71,33 +74,452 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // Placeholder tab screens
-class HomeTabScreen extends StatelessWidget {
+class HomeTabScreen extends StatefulWidget {
   const HomeTabScreen({super.key});
+
+  @override
+  State<HomeTabScreen> createState() => _HomeTabScreenState();
+}
+
+class _HomeTabScreenState extends State<HomeTabScreen> {
+  late Future<List<Match>> _matchesFuture;
+  final MatchService _matchService = MatchService();
+
+  @override
+  void initState() {
+    super.initState();
+    _matchesFuture = _matchService.getPremierLeagueMatchesByMatchday(1, competitionId: 2021);
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final teamProvider = context.watch<TeamProvider>();
     
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppStrings.home),
         backgroundColor: AppColors.primary,
       ),
-      body: Center(
+      body: SingleChildScrollView(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Welcome, ${user?.displayName ?? user?.email ?? 'User'}!',
-              style: Theme.of(context).textTheme.headlineSmall,
+            // Welcome Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back!',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textLight.withOpacity(0.9),
+                    ),
+                  ),
+                  Text(
+                    user?.displayName ?? 'User',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: AppColors.textLight,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Home Screen - Coming Soon',
-              style: Theme.of(context).textTheme.titleLarge,
+
+            // Quick Stats
+            if (teamProvider.team != null)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Team Overview',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            'Points',
+                            '${teamProvider.team!.totalPoints}',
+                            Icons.star_rounded,
+                            AppColors.secondary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            'Gameweek',
+                            '${teamProvider.team!.gameweekPoints}',
+                            Icons.trending_up,
+                            AppColors.accent,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            context,
+                            'Bank',
+                            '£${teamProvider.team!.remainingBudget.toStringAsFixed(1)}m',
+                            Icons.account_balance_wallet,
+                            AppColors.info,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Squad Composition
+                    Text(
+                      'Squad (${teamProvider.team!.players.length}/15)',
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildSquadComposition(context, teamProvider.team!.players),
+                  ],
+                ),
+              ),
+
+            // Live Matches Section
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Gameweek Matches',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FutureBuilder<List<Match>>(
+                    future: _matchesFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Container(
+                          height: 120,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: AppColors.background,
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                        return Container(
+                          height: 120,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: AppColors.background,
+                          ),
+                          child: Center(
+                            child: Text(
+                              'No matches available',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final matches = snapshot.data!.take(5).toList();
+                      return SizedBox(
+                        height: 320,
+                        child: ListView.separated(
+                          scrollDirection: Axis.vertical,
+                          itemCount: matches.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final match = matches[index];
+                            return _buildMatchCard(context, match);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            // FPL Tips
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'FPL Insights',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTipCard(
+                    context,
+                    '💡 Check Transfers',
+                    'Review available players within your budget',
+                    AppColors.primary,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTipCard(
+                    context,
+                    '📊 Form Matters',
+                    'Players in great form will likely score more points',
+                    AppColors.success,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTipCard(
+                    context,
+                    '🛡️ Injury Watch',
+                    'Monitor team news before gameweek deadline',
+                    AppColors.warning,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSquadComposition(BuildContext context, List<Player> players) {
+    final gkCount = players.where((p) => p.position == PlayerPosition.goalkeeper).length;
+    final defCount = players.where((p) => p.position == PlayerPosition.defender).length;
+    final midCount = players.where((p) => p.position == PlayerPosition.midfielder).length;
+    final fwdCount = players.where((p) => p.position == PlayerPosition.forward).length;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildPositionBadge('GK', gkCount.toString(), Colors.amber),
+          _buildPositionBadge('DEF', defCount.toString(), Colors.red),
+          _buildPositionBadge('MID', midCount.toString(), Colors.green),
+          _buildPositionBadge('FWD', fwdCount.toString(), Colors.blue),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPositionBadge(String position, String count, Color color) {
+    return Column(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
+            child: Text(
+              count,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: color,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          position,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMatchCard(BuildContext context, Match match) {
+    final isFinished = match.status == MatchStatus.completed;
+    final isLive = match.status == MatchStatus.live;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isLive ? AppColors.accent.withOpacity(0.1) : AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isLive ? AppColors.accent : AppColors.divider,
+        ),
+      ),
+      child: Column(
+        children: [
+          if (isLive)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'LIVE',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      match.homeTeamName,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      match.awayTeamName,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Score/Time
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    if (isFinished)
+                      Text(
+                        '${match.homeScore} - ${match.awayScore}',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      )
+                    else
+                      Text(
+                        match.kickoffTime.hour.toString().padLeft(2, '0') +
+                            ':' +
+                            match.kickoffTime.minute.toString().padLeft(2, '0'),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTipCard(
+    BuildContext context,
+    String title,
+    String description,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            description,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -428,60 +850,241 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
   }
 }
 
-class ProfileTabScreen extends StatelessWidget {
+class ProfileTabScreen extends StatefulWidget {
   const ProfileTabScreen({super.key});
+
+  @override
+  State<ProfileTabScreen> createState() => _ProfileTabScreenState();
+}
+
+class _ProfileTabScreenState extends State<ProfileTabScreen> {
+  static const List<String> _eplClubs = <String>[
+    'Arsenal',
+    'Aston Villa',
+    'Bournemouth',
+    'Brentford',
+    'Brighton',
+    'Burnley',
+    'Chelsea',
+    'Crystal Palace',
+    'Everton',
+    'Fulham',
+    'Leeds United',
+    'Liverpool',
+    'Manchester City',
+    'Manchester United',
+    'Newcastle United',
+    'Nottingham Forest',
+    'Sunderland',
+    'Tottenham',
+    'West Ham',
+    'Wolves',
+  ];
+
+  static const List<String> _eplPlayers = <String>[
+    'Erling Haaland',
+    'Mohamed Salah',
+    'Bukayo Saka',
+    'Cole Palmer',
+    'Son Heung-min',
+    'Bruno Fernandes',
+    'Alexander Isak',
+    'Phil Foden',
+    'Ollie Watkins',
+    'Declan Rice',
+    'Virgil van Dijk',
+    'William Saliba',
+    'Rodri',
+    'Martin Odegaard',
+    'Jarrod Bowen',
+    'Kaoru Mitoma',
+  ];
+
+  String? _favoriteClub;
+  Set<String> _favoritePlayers = <String>{};
+  bool _prefsReady = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_prefsReady) {
+      _loadPreferences();
+    }
+  }
+
+  String _clubPrefKey(String userId) => 'profile_favorite_club_$userId';
+  String _playersPrefKey(String userId) => 'profile_favorite_players_$userId';
+
+  Future<void> _loadPreferences() async {
+    final user = context.read<AuthProvider>().user;
+    final userId = user?.id ?? 'guest';
+    final prefs = await SharedPreferences.getInstance();
+
+    final club = prefs.getString(_clubPrefKey(userId));
+    final players = prefs.getStringList(_playersPrefKey(userId)) ?? <String>[];
+
+    if (!mounted) return;
+    setState(() {
+      _favoriteClub = club;
+      _favoritePlayers = players.toSet();
+      _prefsReady = true;
+    });
+  }
+
+  Future<void> _savePreferences() async {
+    final user = context.read<AuthProvider>().user;
+    final userId = user?.id ?? 'guest';
+    final prefs = await SharedPreferences.getInstance();
+
+    if (_favoriteClub == null || _favoriteClub!.isEmpty) {
+      await prefs.remove(_clubPrefKey(userId));
+    } else {
+      await prefs.setString(_clubPrefKey(userId), _favoriteClub!);
+    }
+
+    await prefs.setStringList(
+      _playersPrefKey(userId),
+      _favoritePlayers.toList()..sort(),
+    );
+  }
+
+  Future<void> _toggleFavoritePlayer(String player) async {
+    setState(() {
+      if (_favoritePlayers.contains(player)) {
+        _favoritePlayers.remove(player);
+      } else {
+        _favoritePlayers.add(player);
+      }
+    });
+    await _savePreferences();
+  }
+
+  Future<void> _selectFavoriteClub(String club) async {
+    setState(() {
+      _favoriteClub = _favoriteClub == club ? null : club;
+    });
+    await _savePreferences();
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppStrings.profile),
         backgroundColor: AppColors.primary,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundImage: user?.photoUrl != null
-                    ? NetworkImage(user!.photoUrl!)
-                    : null,
-                child: user?.photoUrl == null
-                    ? const Icon(Icons.person, size: 50)
-                    : null,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundImage:
+                        user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
+                    child: user?.photoUrl == null
+                        ? const Icon(Icons.person, size: 50)
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    user?.displayName ?? 'User',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    user?.email ?? '',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                user?.displayName ?? 'User',
-                style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 28),
+            Text(
+              'Favorite EPL Club',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 10),
+            if (!_prefsReady)
+              const LinearProgressIndicator(minHeight: 2)
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _eplClubs
+                    .map(
+                      (club) => ChoiceChip(
+                        label: Text(club),
+                        selected: _favoriteClub == club,
+                        onSelected: (_) => _selectFavoriteClub(club),
+                        selectedColor: AppColors.primary.withOpacity(0.2),
+                      ),
+                    )
+                    .toList(),
               ),
-              const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            Text(
+              'Favorite EPL Players',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Choose as many as you want.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            const SizedBox(height: 10),
+            if (!_prefsReady)
+              const LinearProgressIndicator(minHeight: 2)
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _eplPlayers
+                    .map(
+                      (player) => FilterChip(
+                        label: Text(player),
+                        selected: _favoritePlayers.contains(player),
+                        onSelected: (_) => _toggleFavoritePlayer(player),
+                        selectedColor: AppColors.secondary.withOpacity(0.3),
+                      ),
+                    )
+                    .toList(),
+              ),
+            const SizedBox(height: 28),
+            if (_prefsReady)
               Text(
-                user?.email ?? '',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                'Selected club: ${_favoriteClub ?? 'None'}\nSelected players: ${_favoritePlayers.isEmpty ? 'None' : _favoritePlayers.length}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
                     ),
               ),
-              const SizedBox(height: 48),
-              CustomButton(
-                text: AppStrings.logout,
-                onPressed: () async {
-                  await context.read<AuthProvider>().signOut();
-                  if (context.mounted) {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    );
-                  }
-                },
-                backgroundColor: AppColors.error,
-              ),
-            ],
-          ),
+            const SizedBox(height: 20),
+            CustomButton(
+              text: AppStrings.logout,
+              onPressed: () async {
+                await context.read<AuthProvider>().signOut();
+                if (context.mounted) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
+                }
+              },
+              backgroundColor: AppColors.error,
+            ),
+          ],
         ),
       ),
     );

@@ -86,7 +86,15 @@ class TeamProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      _team = await _loadTeamFromCache();
+      final cachedTeam = await _loadTeamFromCache();
+      if (cachedTeam != null) {
+        _team = await _refreshTeamWithLatestPlayerPoints(cachedTeam);
+        await _saveTeamToCache(_team!);
+        await _leagueSyncService.syncTeam(_team!);
+      } else {
+        _team = null;
+      }
+
       _isLoading = false;
       _errorMessage = _team == null ? e.toString() : null;
       notifyListeners();

@@ -22,6 +22,10 @@ class AppColors {
   static const Color warning = Color(0xFFFF9800);
   static const Color info = Color(0xFF2196F3);
   
+  // UI Colors
+  static const Color divider = Color(0xFFE0E0E0);
+  static const Color surface = Color(0xFFFAFAFA);
+  
   // Player Position Colors
   static const Color goalkeeper = Color(0xFFFFEB3B);
   static const Color defender = Color(0xFF00BCD4);

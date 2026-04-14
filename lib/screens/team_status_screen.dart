@@ -115,12 +115,15 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
                             label: 'Gameweek Points',
                             value: CurrencyFormatter.formatPoints(team.gameweekPoints),
                             color: AppColors.secondary,
-                            onTap: () {
-                              Navigator.of(context).push(
+                            onTap: () async {
+                              await Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => GameweekPointsScreen(team: team),
                                 ),
                               );
+                              if (context.mounted) {
+                                await context.read<TeamProvider>().loadMyTeam();
+                              }
                             },
                           ),
                         ],
