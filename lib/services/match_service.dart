@@ -73,7 +73,11 @@ class MatchService {
     MatchStatus? statusFilter,
     String? competitionExternalId,
   }) async {
-    var query = _client.from('fd_fixtures').select('id, external_id, competition_id, season, gameweek, utc_kickoff, status, home_team_id, away_team_id, home_score, away_score, venue');
+    var query = _client
+        .from('fd_fixtures')
+        .select(
+          'id, external_id, competition_id, season, gameweek, utc_kickoff, status, home_team_id, away_team_id, home_score, away_score, venue',
+        );
 
     if (gameweek != null) {
       query = query.eq('gameweek', gameweek);
@@ -93,41 +97,57 @@ class MatchService {
       query = query.eq('competition_id', competitionRow['id']);
     }
 
-    query = query.eq('season', AppConfig.currentFootballSeasonLabel);
+    query = query.inFilter('season', AppConfig.currentFootballSeasonAliases);
 
-    final rows = await query.eq('provider', 'football-data').order('utc_kickoff');
+    final rows = await query
+        .eq('provider', 'football-data')
+        .order('utc_kickoff');
     if ((rows as List).isEmpty) return const <Match>[];
 
-    final teamRows = await _client.from('fd_teams').select('id, external_id, name').eq('provider', 'football-data');
+    final teamRows = await _client
+        .from('fd_teams')
+        .select('id, external_id, name')
+        .eq('provider', 'football-data');
     final teamsById = <String, Map<String, dynamic>>{};
     for (final row in teamRows as List<dynamic>) {
       final data = row as Map<String, dynamic>;
       teamsById[data['id'].toString()] = data;
     }
 
-    return (rows as List<dynamic>).map((row) {
-      final data = row as Map<String, dynamic>;
-      final homeTeam = teamsById[data['home_team_id'].toString()];
-      final awayTeam = teamsById[data['away_team_id'].toString()];
-      final status = _mapFootballDataStatus((data['status'] as String? ?? 'SCHEDULED').toUpperCase());
-      if (statusFilter != null && status != statusFilter) {
-        return null;
-      }
+    return (rows as List<dynamic>)
+        .map((row) {
+          final data = row as Map<String, dynamic>;
+          final homeTeam = teamsById[data['home_team_id'].toString()];
+          final awayTeam = teamsById[data['away_team_id'].toString()];
+          final status = _mapFootballDataStatus(
+            (data['status'] as String? ?? 'SCHEDULED').toUpperCase(),
+          );
+          if (statusFilter != null && status != statusFilter) {
+            return null;
+          }
 
-      return Match(
-        id: data['external_id'].toString(),
-        homeTeamId: homeTeam?['external_id']?.toString() ?? data['home_team_id'].toString(),
-        homeTeamName: homeTeam?['name'] as String? ?? 'Home Team',
-        awayTeamId: awayTeam?['external_id']?.toString() ?? data['away_team_id'].toString(),
-        awayTeamName: awayTeam?['name'] as String? ?? 'Away Team',
-        homeScore: data['home_score'] as int?,
-        awayScore: data['away_score'] as int?,
-        status: status,
-        kickoffTime: DateTime.tryParse(data['utc_kickoff'] as String? ?? '') ?? DateTime.now(),
-        gameweek: data['gameweek'] as int? ?? 0,
-        venue: data['venue'] as String?,
-      );
-    }).whereType<Match>().toList();
+          return Match(
+            id: data['external_id'].toString(),
+            homeTeamId:
+                homeTeam?['external_id']?.toString() ??
+                data['home_team_id'].toString(),
+            homeTeamName: homeTeam?['name'] as String? ?? 'Home Team',
+            awayTeamId:
+                awayTeam?['external_id']?.toString() ??
+                data['away_team_id'].toString(),
+            awayTeamName: awayTeam?['name'] as String? ?? 'Away Team',
+            homeScore: data['home_score'] as int?,
+            awayScore: data['away_score'] as int?,
+            status: status,
+            kickoffTime:
+                DateTime.tryParse(data['utc_kickoff'] as String? ?? '') ??
+                DateTime.now(),
+            gameweek: data['gameweek'] as int? ?? 0,
+            venue: data['venue'] as String?,
+          );
+        })
+        .whereType<Match>()
+        .toList();
   }
 
   MatchStatus _mapFootballDataStatus(String status) {

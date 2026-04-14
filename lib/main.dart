@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'firebase_options.dart';
@@ -10,6 +11,7 @@ import 'services/auth_service.dart';
 import 'services/api_service.dart';
 import 'services/player_service.dart';
 import 'services/team_service.dart';
+import 'services/notification_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/team_provider.dart';
 import 'providers/player_provider.dart';
@@ -24,6 +26,8 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    await NotificationService.instance.initialize();
     print('✅ Firebase initialized successfully!');
     print('📱 Firebase Apps: ${Firebase.apps.length}');
   } catch (e) {

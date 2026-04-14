@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/app_colors.dart';
+import '../config/app_config.dart';
 import '../models/player.dart';
 import '../models/team.dart';
 
@@ -13,121 +15,175 @@ class GameweekPointsScreen extends StatefulWidget {
 }
 
 class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
-  static const int _referenceGameweek = 11;
-  int _selectedGameweek = _referenceGameweek;
+  int _selectedGameweek = 1;
+  late Future<Map<String, int>> _pointsFuture;
 
-  int _playerPointsForGameweek(Player player, int gameweek) {
-    if (gameweek == _referenceGameweek) {
-      return player.gameweekPoints;
+  final SupabaseClient _client = Supabase.instance.client;
+
+  @override
+  void initState() {
+    super.initState();
+    _pointsFuture = _loadPlayerPointsForGameweek(_selectedGameweek);
+  }
+
+  Future<Map<String, int>> _loadPlayerPointsForGameweek(int gameweek) async {
+    final playerIds = widget.team.players.map((player) => player.id).toList();
+    if (playerIds.isEmpty) return {};
+
+    final playerRows = await _client
+        .from('fd_players')
+        .select('id, external_id')
+        .eq('provider', 'football-data')
+        .inFilter('external_id', playerIds);
+
+    final externalByInternalId = <int, String>{};
+    for (final rawRow in playerRows as List<dynamic>) {
+      final row = rawRow as Map<String, dynamic>;
+      final internalId = (row['id'] as num?)?.toInt();
+      final externalId = row['external_id']?.toString();
+      if (internalId != null && externalId != null) {
+        externalByInternalId[internalId] = externalId;
+      }
     }
 
-    // Fallback until full per-gameweek stats are connected to backend.
-    final seasonAverage = (player.points / 38).round();
-    final varianceSeed = player.id.hashCode + gameweek;
-    final variance = (varianceSeed % 5) - 2; // -2..+2 deterministic variation
-    final estimated = seasonAverage + variance;
-    return estimated < 0 ? 0 : estimated;
+    if (externalByInternalId.isEmpty) return {};
+
+    final pointRows = await _client
+        .from('fd_player_gameweek_points')
+        .select('player_id, points')
+        .inFilter('season', AppConfig.currentFootballSeasonAliases)
+        .eq('gameweek', gameweek)
+        .inFilter('player_id', externalByInternalId.keys.toList());
+
+    final pointsByPlayerId = <String, int>{};
+    for (final rawRow in pointRows as List<dynamic>) {
+      final row = rawRow as Map<String, dynamic>;
+      final internalId = (row['player_id'] as num?)?.toInt();
+      if (internalId == null) continue;
+
+      final externalId = externalByInternalId[internalId];
+      if (externalId == null) continue;
+
+      final points = (row['points'] as num?)?.toInt() ?? 0;
+      pointsByPlayerId.update(
+        externalId,
+        (value) => value + points,
+        ifAbsent: () => points,
+      );
+    }
+
+    return pointsByPlayerId;
+  }
+
+  void _reloadPoints() {
+    setState(() {
+      _pointsFuture = _loadPlayerPointsForGameweek(_selectedGameweek);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final players = [...widget.team.players]
-      ..sort((a, b) => _playerPointsForGameweek(b, _selectedGameweek)
-          .compareTo(_playerPointsForGameweek(a, _selectedGameweek)));
-
-    final teamGameweekPoints = players.fold<int>(
-      0,
-      (sum, player) => sum + _playerPointsForGameweek(player, _selectedGameweek),
-    );
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gameweek Points'),
         backgroundColor: AppColors.primary,
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DropdownButtonFormField<int>(
-                  value: _selectedGameweek,
-                  decoration: const InputDecoration(
-                    labelText: 'Select Gameweek',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: List.generate(
-                    38,
-                    (index) => DropdownMenuItem<int>(
-                      value: index + 1,
-                      child: Text('Gameweek ${index + 1}'),
+      body: FutureBuilder<Map<String, int>>(
+        future: _pointsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final pointsByPlayerId = snapshot.data ?? const {};
+          final players = [...widget.team.players]
+            ..sort(
+              (a, b) => (pointsByPlayerId[b.id] ?? 0).compareTo(
+                pointsByPlayerId[a.id] ?? 0,
+              ),
+            );
+
+          final teamGameweekPoints = players.fold<int>(
+            0,
+            (sum, player) => sum + (pointsByPlayerId[player.id] ?? 0),
+          );
+
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<int>(
+                      value: _selectedGameweek,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Gameweek',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: List.generate(
+                        38,
+                        (index) => DropdownMenuItem<int>(
+                          value: index + 1,
+                          child: Text('Gameweek ${index + 1}'),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _selectedGameweek = value);
+                        _reloadPoints();
+                      },
                     ),
-                  ),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _selectedGameweek = value);
-                  },
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '${widget.team.name} • GW $_selectedGameweek Points: $teamGameweekPoints',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    const SizedBox(height: 12),
+                    Text(
+                      '${widget.team.name} • GW $_selectedGameweek Points: $teamGameweekPoints',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Player-by-player breakdown for selected gameweek.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Player-by-player breakdown for the selected gameweek.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),
+                    ),
+                  ],
                 ),
-                if (_selectedGameweek != _referenceGameweek)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      'Using estimated points for this gameweek. Detailed local data is currently available for GW $_referenceGameweek.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
+              ),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: players.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final player = players[index];
+                    final points = pointsByPlayerId[player.id] ?? 0;
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: AppColors.primary.withOpacity(0.12),
+                        child: Text(
+                          _positionShort(player.position),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
                           ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.separated(
-              itemCount: players.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final player = players[index];
-                final points = _playerPointsForGameweek(player, _selectedGameweek);
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: AppColors.primary.withOpacity(0.12),
-                    child: Text(
-                      _positionShort(player.position),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                        ),
                       ),
-                    ),
-                  ),
-                  title: Text(player.name),
-                  subtitle: Text(player.clubName),
-                  trailing: Text(
-                    '$points pts',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      title: Text(player.name),
+                      subtitle: Text(player.clubName),
+                      trailing: Text(
+                        '$points pts',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

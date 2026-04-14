@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/league.dart';
-import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/league_service.dart';
+import '../providers/team_provider.dart';
 
-enum CreateLeagueFormat { headToHead, leagueAndCup }
+enum CreateLeagueVisibility { public, private }
 
 class CreateLeagueScreen extends StatefulWidget {
   const CreateLeagueScreen({super.key});
@@ -17,10 +18,9 @@ class CreateLeagueScreen extends StatefulWidget {
 class _CreateLeagueScreenState extends State<CreateLeagueScreen> {
   final _formKey = GlobalKey<FormState>();
   final _leagueNameController = TextEditingController();
-  final LeagueService _leagueService =
-      LeagueService(ApiService(AuthService()));
+  final LeagueService _leagueService = LeagueService(AuthService());
 
-  CreateLeagueFormat _selectedFormat = CreateLeagueFormat.headToHead;
+  CreateLeagueVisibility _selectedVisibility = CreateLeagueVisibility.public;
   bool _isSubmitting = false;
 
   @override
@@ -37,20 +37,24 @@ class _CreateLeagueScreenState extends State<CreateLeagueScreen> {
     setState(() => _isSubmitting = true);
 
     final name = _leagueNameController.text.trim();
-    final formatLabel = _selectedFormat == CreateLeagueFormat.headToHead
-        ? 'Head-to-Head'
-        : 'League & Cup';
+    final team = context.read<TeamProvider>().team;
+    final visibilityLabel = _selectedVisibility == CreateLeagueVisibility.public
+        ? 'Public'
+        : 'Private';
 
     try {
       await _leagueService.createLeague(
-        '$name ($formatLabel)',
-        LeagueType.public,
+        name,
+        _selectedVisibility == CreateLeagueVisibility.public
+            ? LeagueType.public
+            : LeagueType.private,
+        team: team,
       );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('League created as $formatLabel'),
+          content: Text('$visibilityLabel league created'),
         ),
       );
       Navigator.of(context).pop(true);
@@ -58,7 +62,7 @@ class _CreateLeagueScreenState extends State<CreateLeagueScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('League setup ready: $name ($formatLabel)'),
+          content: Text('League created: $name'),
         ),
       );
       Navigator.of(context).pop(true);
@@ -97,27 +101,24 @@ class _CreateLeagueScreenState extends State<CreateLeagueScreen> {
                 },
               ),
               const SizedBox(height: 20),
-              Text(
-                'Choose league format',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+              Text('Choose league visibility', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
-              RadioListTile<CreateLeagueFormat>(
-                value: CreateLeagueFormat.headToHead,
-                groupValue: _selectedFormat,
-                title: const Text('Head-to-Head League'),
+              RadioListTile<CreateLeagueVisibility>(
+                value: CreateLeagueVisibility.public,
+                groupValue: _selectedVisibility,
+                title: const Text('Public League'),
                 onChanged: (value) {
                   if (value == null) return;
-                  setState(() => _selectedFormat = value);
+                  setState(() => _selectedVisibility = value);
                 },
               ),
-              RadioListTile<CreateLeagueFormat>(
-                value: CreateLeagueFormat.leagueAndCup,
-                groupValue: _selectedFormat,
-                title: const Text('League & Cup League'),
+              RadioListTile<CreateLeagueVisibility>(
+                value: CreateLeagueVisibility.private,
+                groupValue: _selectedVisibility,
+                title: const Text('Private League'),
                 onChanged: (value) {
                   if (value == null) return;
-                  setState(() => _selectedFormat = value);
+                  setState(() => _selectedVisibility = value);
                 },
               ),
               const Spacer(),

@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_config.dart';
 import '../models/player.dart';
 
 class PlayerService {
@@ -49,17 +50,36 @@ class PlayerService {
     try {
       final normalizedQuery = query.toLowerCase();
       return (await _fetchPlayers())
-          .where((player) =>
-              player.name.toLowerCase().contains(normalizedQuery) ||
-              player.clubName.toLowerCase().contains(normalizedQuery))
+          .where(
+            (player) =>
+                player.name.toLowerCase().contains(normalizedQuery) ||
+                player.clubName.toLowerCase().contains(normalizedQuery),
+          )
           .toList();
     } catch (e) {
       throw Exception('Failed to search players: $e');
     }
   }
 
+  Future<List<Player>> getPlayersByIds(List<String> playerExternalIds) async {
+    if (playerExternalIds.isEmpty) {
+      return const <Player>[];
+    }
+
+    try {
+      final players = await _fetchPlayers();
+      final wanted = playerExternalIds.toSet();
+      return players.where((player) => wanted.contains(player.id)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch players by ids: $e');
+    }
+  }
+
   Future<List<Player>> _fetchPlayers({String? playerExternalId}) async {
-    final teamRows = await _client.from('fd_teams').select('id, external_id, name').eq('provider', 'football-data');
+    final teamRows = await _client
+        .from('fd_teams')
+        .select('id, external_id, name')
+        .eq('provider', 'football-data');
     final teamById = <String, Map<String, dynamic>>{};
     for (final row in teamRows as List<dynamic>) {
       final team = row as Map<String, dynamic>;
@@ -68,21 +88,76 @@ class PlayerService {
 
     var query = _client
         .from('fd_players')
-        .select('id, external_id, team_id, name, position, nationality, price, is_active');
+        .select(
+          'id, external_id, team_id, name, position, nationality, price, is_active',
+        );
 
     if (playerExternalId != null) {
       query = query.eq('external_id', playerExternalId);
     }
 
     final rows = await query
-      .eq('provider', 'football-data')
-      .eq('is_active', true)
-      .order('name');
+        .eq('provider', 'football-data')
+        .eq('is_active', true)
+        .order('name');
 
-    return (rows as List<dynamic>).map((row) {
+    final playerRows = rows as List<dynamic>;
+    final internalPlayerIds = playerRows
+        .map((row) => (row as Map<String, dynamic>)['id'])
+        .whereType<num>()
+        .map((id) => id.toInt())
+        .toList();
+
+    final seasonAliases = AppConfig.currentFootballSeasonAliases;
+    final totalsByPlayerId = <int, int>{};
+    final latestGwPointsByPlayerId = <int, int>{};
+
+    if (internalPlayerIds.isNotEmpty) {
+      final latestGwRows = await _client
+          .from('fd_player_gameweek_points')
+          .select('gameweek')
+          .inFilter('season', seasonAliases)
+          .order('gameweek', ascending: false)
+          .limit(1);
+
+      final latestGameweek = (latestGwRows as List<dynamic>).isNotEmpty
+          ? latestGwRows.first['gameweek']?.toInt()
+          : null;
+
+      final pointsRows = await _client
+          .from('fd_player_gameweek_points')
+          .select('player_id, gameweek, points')
+          .inFilter('season', seasonAliases)
+          .inFilter('player_id', internalPlayerIds);
+
+      for (final rawRow in pointsRows as List<dynamic>) {
+        final row = rawRow as Map<String, dynamic>;
+        final playerId = (row['player_id'] as num?)?.toInt();
+        if (playerId == null) continue;
+
+        final points = (row['points'] as num?)?.toInt() ?? 0;
+        final gameweek = (row['gameweek'] as num?)?.toInt();
+
+        totalsByPlayerId.update(
+          playerId,
+          (value) => value + points,
+          ifAbsent: () => points,
+        );
+        if (latestGameweek != null && gameweek == latestGameweek) {
+          latestGwPointsByPlayerId.update(
+            playerId,
+            (value) => value + points,
+            ifAbsent: () => points,
+          );
+        }
+      }
+    }
+
+    return playerRows.map((row) {
       final data = row as Map<String, dynamic>;
       final teamId = data['team_id']?.toString();
       final team = teamId != null ? teamById[teamId] : null;
+      final internalPlayerId = (data['id'] as num?)?.toInt();
 
       return Player(
         id: data['external_id'].toString(),
@@ -90,9 +165,15 @@ class PlayerService {
         clubId: team?['external_id']?.toString() ?? teamId ?? '',
         clubName: team?['name'] as String? ?? 'Unknown Team',
         position: _positionFromRaw(data['position'] as String?),
-        price: (data['price'] as num?)?.toDouble() ?? _defaultPrice(data['position'] as String?),
-        points: 0,
-        gameweekPoints: 0,
+        price:
+            (data['price'] as num?)?.toDouble() ??
+            _defaultPrice(data['position'] as String?),
+        points: internalPlayerId == null
+            ? 0
+            : (totalsByPlayerId[internalPlayerId] ?? 0),
+        gameweekPoints: internalPlayerId == null
+            ? 0
+            : (latestGwPointsByPlayerId[internalPlayerId] ?? 0),
         nationality: data['nationality'] as String? ?? '',
         form: 0.0,
       );
@@ -104,7 +185,8 @@ class PlayerService {
     if (value.contains('goal')) return PlayerPosition.goalkeeper;
     if (value.contains('def')) return PlayerPosition.defender;
     if (value.contains('mid')) return PlayerPosition.midfielder;
-    if (value.contains('forw') || value.contains('strik')) return PlayerPosition.forward;
+    if (value.contains('forw') || value.contains('strik'))
+      return PlayerPosition.forward;
     return PlayerPosition.midfielder;
   }
 

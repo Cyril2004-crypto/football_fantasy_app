@@ -191,6 +191,7 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
       await teamProvider.createTeam(
         _teamNameController.text,
         _selectedPlayers.map((p) => p.id).toList(),
+        selectedPlayers: List<Player>.from(_selectedPlayers),
       );
 
       if (mounted) {

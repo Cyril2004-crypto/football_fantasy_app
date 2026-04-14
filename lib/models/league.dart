@@ -22,14 +22,15 @@ class League extends Equatable {
   });
 
   factory League.fromJson(Map<String, dynamic> json) {
+    final createdAtValue = json['createdAt'] ?? json['created_at'];
     return League(
       id: json['id'] as String,
       name: json['name'] as String,
       code: json['code'] as String?,
       type: json['type'] == 'public' ? LeagueType.public : LeagueType.private,
-      createdBy: json['createdBy'] as String,
-      membersCount: json['membersCount'] as int? ?? 0,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdBy: (json['createdBy'] ?? json['created_by_user_id']) as String,
+      membersCount: (json['membersCount'] ?? json['members_count']) as int? ?? 0,
+      createdAt: DateTime.parse(createdAtValue as String),
     );
   }
 

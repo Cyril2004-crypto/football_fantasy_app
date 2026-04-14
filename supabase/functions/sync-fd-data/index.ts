@@ -47,20 +47,164 @@ function estimatePrice(position: string | null): number {
   }
 }
 
-async function fetchFootballData(path: string, token: string): Promise<Json> {
-  const response = await fetch(`${FOOTBALL_DATA_BASE}${path}`, {
-    headers: {
-      "X-Auth-Token": token,
-      "X-Unfold-Goals": "true",
-    },
-  });
+function asObject(value: unknown): Json {
+  if (value && typeof value === "object") {
+    return value as Json;
+  }
+  return {};
+}
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`football-data ${response.status}: ${text}`);
+function extractId(value: unknown): string | null {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
   }
 
-  return (await response.json()) as Json;
+  if (value && typeof value === "object") {
+    const obj = value as Json;
+    const id = obj.id;
+    if (typeof id === "string" || typeof id === "number") {
+      return String(id);
+    }
+  }
+
+  return null;
+}
+
+function calculateFantasyPoints(params: {
+  position: string | null;
+  goals: number;
+  assists: number;
+  cleanSheet: boolean;
+  yellowCards: number;
+  redCards: number;
+  saves: number;
+  bonus: number;
+}): number {
+  const position = normalizePosition(params.position);
+
+  const goalPoints =
+    position === "goalkeeper"
+      ? params.goals * 10
+      : position === "defender"
+      ? params.goals * 6
+      : position === "forward"
+      ? params.goals * 4
+      : params.goals * 5;
+
+  const cleanSheetPoints =
+    params.cleanSheet && (position === "goalkeeper" || position === "defender")
+      ? 4
+      : 0;
+
+  return (
+    goalPoints +
+    (params.assists * 3) +
+    cleanSheetPoints +
+    params.bonus -
+    params.yellowCards -
+    (params.redCards * 3) +
+    Math.floor(params.saves / 3)
+  );
+}
+
+type PlayerMatchStats = {
+  playerId: number;
+  fixtureId: number;
+  season: string;
+  gameweek: number;
+  minutes: number;
+  goals: number;
+  assists: number;
+  cleanSheet: boolean;
+  yellowCards: number;
+  redCards: number;
+  saves: number;
+  bonus: number;
+};
+
+function statsKey(playerId: number, fixtureId: number): string {
+  return `${playerId}:${fixtureId}`;
+}
+
+type PlayerIdentity = {
+  id: number;
+  position: string | null;
+};
+
+function positionBucket(position: string | null): "goalkeeper" | "defender" | "midfielder" | "forward" {
+  const normalized = normalizePosition(position);
+  if (normalized === "goalkeeper") return "goalkeeper";
+  if (normalized === "defender") return "defender";
+  if (normalized === "forward") return "forward";
+  return "midfielder";
+}
+
+function pickStarterIds(players: PlayerIdentity[]): number[] {
+  const goalkeepers = players.filter((p) => positionBucket(p.position) === "goalkeeper");
+  const defenders = players.filter((p) => positionBucket(p.position) === "defender");
+  const midfielders = players.filter((p) => positionBucket(p.position) === "midfielder");
+  const forwards = players.filter((p) => positionBucket(p.position) === "forward");
+
+  const selected = new Set<number>();
+
+  function take(from: PlayerIdentity[], count: number): void {
+    from
+      .slice()
+      .sort((a, b) => a.id - b.id)
+      .slice(0, count)
+      .forEach((p) => selected.add(p.id));
+  }
+
+  take(goalkeepers, 1);
+  take(defenders, 4);
+  take(midfielders, 4);
+  take(forwards, 2);
+
+  if (selected.size < 11) {
+    const ordered = players.slice().sort((a, b) => a.id - b.id);
+    for (const player of ordered) {
+      selected.add(player.id);
+      if (selected.size >= 11) break;
+    }
+  }
+
+  return Array.from(selected);
+}
+
+async function fetchFootballData(path: string, token: string): Promise<Json> {
+  const maxAttempts = 4;
+  let lastError = "Unknown error";
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const response = await fetch(`${FOOTBALL_DATA_BASE}${path}`, {
+      headers: {
+        "X-Auth-Token": token,
+        "X-Unfold-Goals": "true",
+      },
+    });
+
+    if (response.ok) {
+      return (await response.json()) as Json;
+    }
+
+    const text = await response.text();
+    lastError = `football-data ${response.status}: ${text}`;
+
+    // football-data free tier frequently returns 429 with "Wait 30 seconds".
+    if (response.status === 429 && attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 32000));
+      continue;
+    }
+
+    if (response.status >= 500 && attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+      continue;
+    }
+
+    throw new Error(lastError);
+  }
+
+  throw new Error(lastError);
 }
 
 Deno.serve(async (req: Request) => {
@@ -284,6 +428,251 @@ Deno.serve(async (req: Request) => {
       playerUpserts += playerPayload.length;
     }
 
+    // 4) Player gameweek points from match events (goals/assists/cards)
+    const { data: fixtureMapRows, error: fixtureMapError } = await supabase
+      .from("fd_fixtures")
+      .select("id, external_id, gameweek, home_team_id, away_team_id, home_score, away_score, status")
+      .eq("provider", "football-data")
+      .eq("competition_id", competitionId)
+      .eq("season", seasonLabel);
+
+    if (fixtureMapError || !fixtureMapRows) {
+      throw new Error(`Fixture map load failed: ${fixtureMapError?.message ?? "unknown"}`);
+    }
+
+    const fixtureByExternalId = new Map<string, {
+      id: number;
+      gameweek: number;
+      homeTeamId: number;
+      awayTeamId: number;
+      homeScore: number | null;
+      awayScore: number | null;
+      status: string;
+    }>();
+    for (const row of fixtureMapRows as Array<{
+      id: number;
+      external_id: string;
+      gameweek: number;
+      home_team_id: number;
+      away_team_id: number;
+      home_score: number | null;
+      away_score: number | null;
+      status: string;
+    }>) {
+      fixtureByExternalId.set(String(row.external_id), {
+        id: row.id,
+        gameweek: typeof row.gameweek === "number" ? row.gameweek : 0,
+        homeTeamId: row.home_team_id,
+        awayTeamId: row.away_team_id,
+        homeScore: typeof row.home_score === "number" ? row.home_score : null,
+        awayScore: typeof row.away_score === "number" ? row.away_score : null,
+        status: typeof row.status === "string" ? row.status : "SCHEDULED",
+      });
+    }
+
+    const { data: playerMapRows, error: playerMapError } = await supabase
+      .from("fd_players")
+      .select("id, external_id, position, team_id")
+      .eq("provider", "football-data")
+      .eq("is_active", true);
+
+    if (playerMapError || !playerMapRows) {
+      throw new Error(`Player map load failed: ${playerMapError?.message ?? "unknown"}`);
+    }
+
+    const playerByExternalId = new Map<string, { id: number; position: string | null }>();
+    const playerPositionById = new Map<number, string | null>();
+    const playersByTeamId = new Map<number, PlayerIdentity[]>();
+    for (const row of playerMapRows as Array<{ id: number; external_id: string; position: string | null; team_id: number }>) {
+      playerByExternalId.set(String(row.external_id), {
+        id: row.id,
+        position: row.position,
+      });
+      playerPositionById.set(row.id, row.position);
+
+      const list = playersByTeamId.get(row.team_id) ?? [];
+      list.push({ id: row.id, position: row.position });
+      playersByTeamId.set(row.team_id, list);
+    }
+
+    const statsByPlayerFixture = new Map<string, PlayerMatchStats>();
+    let parsedGoalEvents = 0;
+    let parsedAssistEvents = 0;
+    let parsedCardEvents = 0;
+
+    function ensureStats(playerId: number, fixtureId: number, gameweek: number): PlayerMatchStats {
+      const key = statsKey(playerId, fixtureId);
+      const existing = statsByPlayerFixture.get(key);
+      if (existing) return existing;
+
+      const created: PlayerMatchStats = {
+        playerId,
+        fixtureId,
+        season: seasonLabel,
+        gameweek,
+        minutes: 0,
+        goals: 0,
+        assists: 0,
+        cleanSheet: false,
+        yellowCards: 0,
+        redCards: 0,
+        saves: 0,
+        bonus: 0,
+      };
+      statsByPlayerFixture.set(key, created);
+      return created;
+    }
+
+    for (const match of matches) {
+      const matchId = String(match.id ?? "");
+      const fixture = fixtureByExternalId.get(matchId);
+      if (!fixture) continue;
+
+      const gameweek = typeof match.matchday === "number" ? match.matchday : fixture.gameweek;
+
+      const goals = Array.isArray(match.goals) ? (match.goals as unknown[]) : [];
+      for (const rawGoal of goals) {
+        const goal = asObject(rawGoal);
+
+        const ownGoal = Boolean(goal.ownGoal);
+        const scorerExternalId =
+          extractId(goal.scorer) ??
+          extractId(goal.player) ??
+          extractId(goal.scorerId) ??
+          extractId(goal.playerId);
+
+        if (!ownGoal && scorerExternalId) {
+          const scorer = playerByExternalId.get(scorerExternalId);
+          if (scorer) {
+            const stats = ensureStats(scorer.id, fixture.id, gameweek);
+            stats.goals += 1;
+            parsedGoalEvents += 1;
+          }
+        }
+
+        const assistExternalId =
+          extractId(goal.assist) ??
+          extractId(goal.assistId) ??
+          extractId(goal.assistedBy);
+
+        if (assistExternalId) {
+          const assister = playerByExternalId.get(assistExternalId);
+          if (assister) {
+            const stats = ensureStats(assister.id, fixture.id, gameweek);
+            stats.assists += 1;
+            parsedAssistEvents += 1;
+          }
+        }
+      }
+
+      const bookings = Array.isArray(match.bookings) ? (match.bookings as unknown[]) : [];
+      for (const rawBooking of bookings) {
+        const booking = asObject(rawBooking);
+        const playerExternalId =
+          extractId(booking.player) ??
+          extractId(booking.person) ??
+          extractId(booking.playerId);
+        if (!playerExternalId) continue;
+
+        const player = playerByExternalId.get(playerExternalId);
+        if (!player) continue;
+
+        const stats = ensureStats(player.id, fixture.id, gameweek);
+        const cardType = String(booking.card ?? booking.cardType ?? "").toLowerCase();
+
+        if (cardType.includes("red")) {
+          stats.redCards += 1;
+          parsedCardEvents += 1;
+        } else if (cardType.includes("yellow")) {
+          stats.yellowCards += 1;
+          parsedCardEvents += 1;
+        }
+      }
+    }
+
+    // Fallback mode: if player-level event feed is missing, estimate starter points from team results.
+    let fallbackStarterRows = 0;
+    for (const fixture of fixtureByExternalId.values()) {
+      if (fixture.homeScore == null || fixture.awayScore == null) continue;
+      if (fixture.status.toUpperCase() !== "FINISHED") continue;
+
+      const homePlayers = playersByTeamId.get(fixture.homeTeamId) ?? [];
+      const awayPlayers = playersByTeamId.get(fixture.awayTeamId) ?? [];
+      if (homePlayers.length === 0 && awayPlayers.length === 0) continue;
+
+      const homeStarterIds = pickStarterIds(homePlayers);
+      const awayStarterIds = pickStarterIds(awayPlayers);
+
+      const homeResultBonus = fixture.homeScore > fixture.awayScore ? 1 : (fixture.homeScore < fixture.awayScore ? -1 : 0);
+      const awayResultBonus = fixture.awayScore > fixture.homeScore ? 1 : (fixture.awayScore < fixture.homeScore ? -1 : 0);
+
+      for (const playerId of homeStarterIds) {
+        const stats = ensureStats(playerId, fixture.id, fixture.gameweek);
+        stats.minutes = Math.max(stats.minutes, 90);
+        stats.bonus += 2 + homeResultBonus; // appearance + team result
+        const position = playerPositionById.get(playerId) ?? null;
+        const bucket = positionBucket(position);
+        if (fixture.awayScore === 0 && (bucket === "goalkeeper" || bucket === "defender")) {
+          stats.cleanSheet = true;
+        }
+        fallbackStarterRows += 1;
+      }
+
+      for (const playerId of awayStarterIds) {
+        const stats = ensureStats(playerId, fixture.id, fixture.gameweek);
+        stats.minutes = Math.max(stats.minutes, 90);
+        stats.bonus += 2 + awayResultBonus; // appearance + team result
+        const position = playerPositionById.get(playerId) ?? null;
+        const bucket = positionBucket(position);
+        if (fixture.homeScore === 0 && (bucket === "goalkeeper" || bucket === "defender")) {
+          stats.cleanSheet = true;
+        }
+        fallbackStarterRows += 1;
+      }
+    }
+
+    const playerGameweekPayload = Array.from(statsByPlayerFixture.values()).map((stats) => {
+      const points = calculateFantasyPoints({
+        position: playerPositionById.get(stats.playerId) ?? null,
+        goals: stats.goals,
+        assists: stats.assists,
+        cleanSheet: stats.cleanSheet,
+        yellowCards: stats.yellowCards,
+        redCards: stats.redCards,
+        saves: stats.saves,
+        bonus: stats.bonus,
+      });
+
+      return {
+        player_id: stats.playerId,
+        season: stats.season,
+        gameweek: stats.gameweek,
+        fixture_id: stats.fixtureId,
+        minutes: stats.minutes,
+        goals: stats.goals,
+        assists: stats.assists,
+        clean_sheet: stats.cleanSheet,
+        yellow_cards: stats.yellowCards,
+        red_cards: stats.redCards,
+        saves: stats.saves,
+        bonus: stats.bonus,
+        points,
+        source: "football-data-events",
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    let playerGameweekUpserts = 0;
+    for (const chunk of chunkArray(playerGameweekPayload, 300)) {
+      const { error: pointsError } = await supabase
+        .from("fd_player_gameweek_points")
+        .upsert(chunk, { onConflict: "player_id,season,gameweek,fixture_id" });
+      if (pointsError) {
+        throw new Error(`Player gameweek points upsert failed: ${pointsError.message}`);
+      }
+      playerGameweekUpserts += chunk.length;
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
@@ -292,6 +681,11 @@ Deno.serve(async (req: Request) => {
         upsertedTeams: teamPayload.length,
         upsertedFixtures: fixturePayload.length,
         upsertedPlayers: playerUpserts,
+        upsertedPlayerGameweekPoints: playerGameweekUpserts,
+        parsedGoalEvents,
+        parsedAssistEvents,
+        parsedCardEvents,
+        fallbackStarterRows,
       }),
       {
         status: 200,

@@ -9,6 +9,8 @@ import '../widgets/loading_indicator.dart';
 import 'pick_team_screen.dart';
 import 'gameweek_points_screen.dart';
 import 'transfers_screen.dart';
+import 'create_league_screen.dart';
+import 'join_league_screen.dart';
 
 class TeamStatusScreen extends StatefulWidget {
   const TeamStatusScreen({super.key});
@@ -214,17 +216,25 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () {
-                                // TODO: Implement create league
-                              },
                               child: const Text(AppStrings.createLeague),
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const CreateLeagueScreen(),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () {
-                                // TODO: Implement join league
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const JoinLeagueScreen(),
+                                  ),
+                                );
                               },
                               child: const Text(AppStrings.joinLeague),
                             ),

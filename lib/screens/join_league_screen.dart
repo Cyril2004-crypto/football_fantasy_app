@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../models/league.dart';
 import '../services/league_service.dart';
+import '../providers/team_provider.dart';
 
 enum JoinLeagueMode { publicLeague, privateLeague }
 
@@ -16,23 +18,17 @@ class JoinLeagueScreen extends StatefulWidget {
 class _JoinLeagueScreenState extends State<JoinLeagueScreen> {
   final _formKey = GlobalKey<FormState>();
   final _leagueCodeController = TextEditingController();
-  final LeagueService _leagueService =
-      LeagueService(ApiService(AuthService()));
+  final LeagueService _leagueService = LeagueService(AuthService());
 
   JoinLeagueMode _selectedMode = JoinLeagueMode.publicLeague;
-  String? _selectedPublicLeague;
+  League? _selectedPublicLeague;
   bool _isSubmitting = false;
-
-  final List<String> _publicLeagueOptions = const [
-    'Global League',
-    'Top Scorers League',
-    'Weekend Warriors League',
-  ];
+  late Future<List<League>> _publicLeaguesFuture;
 
   @override
   void initState() {
     super.initState();
-    _selectedPublicLeague = _publicLeagueOptions.first;
+    _publicLeaguesFuture = _leagueService.getPublicLeagues();
   }
 
   @override
@@ -48,20 +44,31 @@ class _JoinLeagueScreenState extends State<JoinLeagueScreen> {
     }
 
     setState(() => _isSubmitting = true);
+    final team = context.read<TeamProvider>().team;
 
     try {
       if (_selectedMode == JoinLeagueMode.privateLeague) {
-        await _leagueService.joinLeague(_leagueCodeController.text.trim());
+        await _leagueService.joinLeague(
+          leagueCode: _leagueCodeController.text.trim(),
+          team: team,
+        );
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Joined private league successfully')),
         );
       } else {
+        final league = _selectedPublicLeague;
+        if (league == null) {
+          throw Exception('Please select a public league');
+        }
+
+        await _leagueService.joinLeague(
+          leagueId: league.id,
+          team: team,
+        );
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Joined ${_selectedPublicLeague ?? 'public league'}'),
-          ),
+          SnackBar(content: Text('Joined ${league.name}')),
         );
       }
 
@@ -117,22 +124,41 @@ class _JoinLeagueScreenState extends State<JoinLeagueScreen> {
               ),
               const SizedBox(height: 12),
               if (_selectedMode == JoinLeagueMode.publicLeague)
-                DropdownButtonFormField<String>(
-                  value: _selectedPublicLeague,
-                  decoration: const InputDecoration(
-                    labelText: 'Select Public League',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _publicLeagueOptions
-                      .map(
-                        (league) => DropdownMenuItem(
-                          value: league,
-                          child: Text(league),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedPublicLeague = value);
+                FutureBuilder<List<League>>(
+                  future: _publicLeaguesFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: LinearProgressIndicator(),
+                      );
+                    }
+
+                    final leagues = snapshot.data ?? [];
+                    if (leagues.isEmpty) {
+                      return const Text('No public leagues available yet.');
+                    }
+
+                    _selectedPublicLeague ??= leagues.first;
+
+                    return DropdownButtonFormField<League>(
+                      value: _selectedPublicLeague,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Public League',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: leagues
+                          .map(
+                            (league) => DropdownMenuItem(
+                              value: league,
+                              child: Text('${league.name} • ${league.membersCount} members'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() => _selectedPublicLeague = value);
+                      },
+                    );
                   },
                 )
               else

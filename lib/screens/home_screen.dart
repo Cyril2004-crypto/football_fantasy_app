@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/auth_service.dart';
+import '../services/league_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
+import '../models/league.dart';
 import '../models/match.dart';
 import '../services/match_service.dart';
 import '../widgets/custom_button.dart';
 import 'login_screen.dart';
 import 'team_status_screen.dart';
+import 'create_league_screen.dart';
+import 'join_league_screen.dart';
+import 'league_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -114,8 +120,33 @@ class MyTeamTabScreen extends StatelessWidget {
   }
 }
 
-class LeaguesTabScreen extends StatelessWidget {
+class LeaguesTabScreen extends StatefulWidget {
   const LeaguesTabScreen({super.key});
+
+  @override
+  State<LeaguesTabScreen> createState() => _LeaguesTabScreenState();
+}
+
+class _LeaguesTabScreenState extends State<LeaguesTabScreen> {
+  late final LeagueService _leagueService;
+  late Future<_LeaguesData> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _leagueService = LeagueService(AuthService());
+    _future = _loadData();
+  }
+
+  Future<_LeaguesData> _loadData() async {
+    final myLeagues = await _leagueService.getMyLeagues();
+    final publicLeagues = await _leagueService.getPublicLeagues();
+    return _LeaguesData(myLeagues: myLeagues, publicLeagues: publicLeagues);
+  }
+
+  void _refresh() {
+    setState(() => _future = _loadData());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,12 +154,109 @@ class LeaguesTabScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text(AppStrings.leagues),
         backgroundColor: AppColors.primary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refresh,
+          ),
+        ],
       ),
-      body: const Center(
-        child: Text('Leagues - Coming Soon'),
+      body: RefreshIndicator(
+        onRefresh: () async => _refresh(),
+        child: FutureBuilder<_LeaguesData>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final data = snapshot.data ?? const _LeaguesData(myLeagues: [], publicLeagues: []);
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final refreshed = await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(builder: (_) => const CreateLeagueScreen()),
+                          );
+                          if (refreshed == true) _refresh();
+                        },
+                        child: const Text(AppStrings.createLeague),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          final refreshed = await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(builder: (_) => const JoinLeagueScreen()),
+                          );
+                          if (refreshed == true) _refresh();
+                        },
+                        child: const Text(AppStrings.joinLeague),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Text('My Leagues', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
+                ..._buildLeagueCards(data.myLeagues, emptyText: 'You have not joined any leagues yet.'),
+                const SizedBox(height: 24),
+                Text('Public Leagues', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
+                ..._buildLeagueCards(data.publicLeagues, emptyText: 'No public leagues found.'),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
+
+  List<Widget> _buildLeagueCards(List<League> leagues, {required String emptyText}) {
+    if (leagues.isEmpty) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text(emptyText),
+        ),
+      ];
+    }
+
+    return leagues
+        .map(
+          (league) => Card(
+            child: ListTile(
+              leading: Icon(
+                league.type == LeagueType.public ? Icons.public : Icons.lock,
+                color: AppColors.primary,
+              ),
+              title: Text(league.name),
+              subtitle: Text('${league.membersCount} members${league.code != null ? ' • Code: ${league.code}' : ''}'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => LeagueDetailsScreen(league: league),
+                  ),
+                );
+              },
+            ),
+          ),
+        )
+        .toList();
+  }
+}
+
+class _LeaguesData {
+  final List<League> myLeagues;
+  final List<League> publicLeagues;
+
+  const _LeaguesData({required this.myLeagues, required this.publicLeagues});
 }
 
 class FixturesTabScreen extends StatefulWidget {
