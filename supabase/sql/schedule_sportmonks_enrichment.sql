@@ -3,18 +3,6 @@
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
-create extension if not exists vault;
-
--- Store function URL and shared secret in Vault.
-select vault.create_secret(
-  'https://oznmbinzelhcnfiwvapu.functions.supabase.co/sync-sportmonks-data',
-  'sportmonks_sync_function_url'
-);
-
-select vault.create_secret(
-  'YOUR_INGESTION_SECRET',
-  'sportmonks_ingestion_secret'
-);
 
 -- Schedule every 20 minutes for near-live enrichment.
 select cron.schedule(
@@ -22,10 +10,10 @@ select cron.schedule(
   '*/20 * * * *',
   $$
     select net.http_post(
-      url := (select decrypted_secret from vault.decrypted_secrets where name = 'sportmonks_sync_function_url'),
+      url := 'https://oznmbinzelhcnfiwvapu.functions.supabase.co/sync-sportmonks-data',
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
-        'x-ingestion-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'sportmonks_ingestion_secret')
+        'x-ingestion-secret', 'BwRfOFXvWxcj3Lm6VnaoUKzudCSZYEeMPtIQs24khNq0l781'
       ),
       body := jsonb_build_object(
         'competitionExternalId', '2021',
