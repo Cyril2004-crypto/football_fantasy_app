@@ -4,7 +4,15 @@ import '../models/match.dart';
 import '../config/app_config.dart';
 
 class MatchService {
-  final SupabaseClient _client = Supabase.instance.client;
+  SupabaseClient get _client {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      throw Exception(
+        'Supabase is not initialized. Configure SUPABASE_URL and SUPABASE_ANON_KEY.',
+      );
+    }
+  }
 
   Future<List<Match>> getLiveMatches() async {
     try {

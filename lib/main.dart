@@ -12,14 +12,19 @@ import 'services/api_service.dart';
 import 'services/player_service.dart';
 import 'services/team_service.dart';
 import 'services/notification_service.dart';
+import 'services/ops_dashboard_service.dart';
+import 'services/team_analytics_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/team_provider.dart';
 import 'providers/player_provider.dart';
+import 'providers/ops_dashboard_provider.dart';
+import 'providers/team_analytics_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  var supabaseReady = false;
   
   // Initialize Firebase
   try {
@@ -40,6 +45,7 @@ void main() async {
         url: AppConfig.supabaseUrl,
         anonKey: AppConfig.supabaseAnonKey,
       );
+      supabaseReady = true;
       print('✅ Supabase initialized successfully!');
     } catch (e) {
       print('❌ Supabase initialization error: $e');
@@ -48,17 +54,18 @@ void main() async {
     print('ℹ️ Supabase skipped (SUPABASE_URL/SUPABASE_ANON_KEY missing).');
   }
   
-  runApp(const MyApp());
+  runApp(MyApp(supabaseReady: supabaseReady));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool supabaseReady;
+
+  const MyApp({super.key, required this.supabaseReady});
 
   @override
   Widget build(BuildContext context) {
     // Initialize services
     final authService = AuthService();
-    final playerService = PlayerService();
     final teamService = TeamService(ApiService(authService));
 
     return MultiProvider(
@@ -69,9 +76,20 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => TeamProvider(teamService),
         ),
-        ChangeNotifierProvider(
-          create: (_) => PlayerProvider(playerService),
-        ),
+        if (supabaseReady)
+          ChangeNotifierProvider(
+            create: (_) => PlayerProvider(PlayerService()),
+          ),
+        if (supabaseReady)
+          ChangeNotifierProvider(
+            create: (_) =>
+                OpsDashboardProvider(OpsDashboardService(Supabase.instance.client)),
+          ),
+        if (supabaseReady)
+          ChangeNotifierProvider(
+            create: (_) =>
+                TeamAnalyticsProvider(TeamAnalyticsService(Supabase.instance.client)),
+          ),
       ],
       child: MaterialApp(
         title: AppStrings.appName,

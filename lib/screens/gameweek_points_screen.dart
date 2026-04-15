@@ -18,7 +18,15 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
   int _selectedGameweek = 1;
   late Future<Map<String, int>> _pointsFuture;
 
-  final SupabaseClient _client = Supabase.instance.client;
+  SupabaseClient get _client {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      throw Exception(
+        'Supabase is not initialized. Configure SUPABASE_URL and SUPABASE_ANON_KEY.',
+      );
+    }
+  }
 
   @override
   void initState() {

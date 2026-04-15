@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
 import '../providers/team_provider.dart';
+import '../providers/ops_dashboard_provider.dart';
+import '../providers/team_analytics_provider.dart';
 import '../services/auth_service.dart';
 import '../services/league_service.dart';
 import '../constants/app_colors.dart';
@@ -20,6 +22,8 @@ import 'join_league_screen.dart';
 import 'league_details_screen.dart';
 import 'livescore_screen.dart';
 import 'news_screen.dart';
+import 'ops_admin_screen.dart';
+import 'team_analytics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -199,7 +203,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                           child: _buildStatCard(
                             context,
                             'Points',
-                            '${team!.totalPoints}',
+                            '${team.totalPoints}',
                             Icons.star_rounded,
                             AppColors.secondary,
                           ),
@@ -1055,6 +1059,9 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final team = context.watch<TeamProvider>().team;
+    final hasOpsProvider = _hasProvider<OpsDashboardProvider>(context);
+    final hasAnalyticsProvider = _hasProvider<TeamAnalyticsProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -1157,6 +1164,68 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
                       color: AppColors.textSecondary,
                     ),
               ),
+            const SizedBox(height: 24),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Advanced Tools',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ops and analytics features are available when Supabase is initialized.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: hasOpsProvider
+                          ? () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const OpsAdminScreen(),
+                                ),
+                              );
+                            }
+                          : null,
+                      icon: const Icon(Icons.monitor_heart_outlined),
+                      label: const Text('Open Ops Dashboard'),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: hasAnalyticsProvider && team != null
+                          ? () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => TeamAnalyticsScreen(team: team),
+                                ),
+                              );
+                            }
+                          : null,
+                      icon: const Icon(Icons.analytics_outlined),
+                      label: const Text('Open Team Analytics'),
+                    ),
+                    if (team == null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Create or load your team first to view team analytics.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 20),
             CustomButton(
               text: AppStrings.logout,
@@ -1174,5 +1243,14 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
         ),
       ),
     );
+  }
+
+  bool _hasProvider<T>(BuildContext context) {
+    try {
+      context.read<T>();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }

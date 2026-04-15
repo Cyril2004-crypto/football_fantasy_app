@@ -9,6 +9,7 @@ import '../widgets/loading_indicator.dart';
 import 'pick_team_screen.dart';
 import 'gameweek_points_screen.dart';
 import 'transfers_screen.dart';
+import 'team_analytics_screen.dart';
 import 'create_league_screen.dart';
 import 'join_league_screen.dart';
 
@@ -61,15 +62,25 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
                   const SizedBox(height: 32),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: CustomButton(
-                      text: AppStrings.selectTeam,
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const PickTeamScreen(),
-                          ),
-                        );
-                      },
+                    child: Column(
+                      children: [
+                        CustomButton(
+                          text: AppStrings.selectTeam,
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const PickTeamScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: null,
+                          icon: const Icon(Icons.analytics_outlined),
+                          label: const Text('Analytics requires a team'),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -175,6 +186,18 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
                         },
                         backgroundColor: AppColors.secondary,
                         textColor: AppColors.textPrimary,
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.analytics_outlined),
+                        label: const Text('Open Team Analytics'),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => TeamAnalyticsScreen(team: team),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

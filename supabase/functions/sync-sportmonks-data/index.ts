@@ -412,11 +412,12 @@ Deno.serve(async (req: Request) => {
       if (fixtureExternalId <= 0) continue;
 
       const matchCentre = await fetchSportmonks(
-        `/fixtures/${fixtureExternalId}?include=participants;scores;events.type;events.player;events.relatedplayer;lineups.details.type;statistics.type`,
+        `/fixtures/${fixtureExternalId}?include=participants;scores;events.type;events.player;events.relatedplayer;lineups.details.type;statistics.type;sidelined.type;sidelined.sideline;sidelined.player;sidelined.participant`,
         sportmonksToken,
       );
       const matchData = asObject(matchCentre.data);
       const events = asList(matchData.events);
+      const sidelined = asList(matchData.sidelined);
 
       let xgLineups: unknown[] = [];
       if (xgEndpointAvailable) {
@@ -531,6 +532,65 @@ Deno.serve(async (req: Request) => {
               updated_at: new Date().toISOString(),
             });
           }
+        }
+      }
+
+      for (const rawSidelined of sidelined) {
+        const s = asObject(rawSidelined);
+        const sideline = asObject(s.sideline);
+        const typeObj = asObject(s.type);
+        const participant = asObject(s.participant);
+        const player = asObject(s.player);
+
+        const teamName = asString(participant.name);
+        const playerName = asString(player.name, asString(player.display_name));
+        const sidelineId = asString(s.sideline_id, asString(s.id));
+        const category = asString(sideline.category).toLowerCase();
+        const typeName = asString(typeObj.developer_name, asString(typeObj.name));
+
+        const resolvedTeamId = teamNameToId.get(normalizeName(teamName));
+        if (!resolvedTeamId || !playerName) continue;
+
+        const mapped = playerByTeamAndName.get(`${resolvedTeamId}:${normalizeName(playerName)}`);
+        if (!mapped) continue;
+
+        const externalId = sidelineId.length > 0
+          ? `sportmonks:sideline:${sidelineId}`
+          : `sportmonks:${fixtureExternalId}:sideline:${asString(s.id, String(mapped.id))}`;
+
+        const isSuspension =
+          category.includes("susp") ||
+          typeName.toLowerCase().includes("susp") ||
+          typeName.toLowerCase().includes("red_card");
+
+        if (isSuspension) {
+          suspensionsPayload.push({
+            player_id: mapped.id,
+            provider: "sportmonks",
+            external_id: externalId,
+            season: currentSeason,
+            reason: typeName || "Suspension",
+            matches_remaining: asInt(sideline.games_missed, 0),
+            source_url: null,
+            raw_payload: s,
+            updated_at: new Date().toISOString(),
+          });
+        } else {
+          injuriesPayload.push({
+            player_id: mapped.id,
+            provider: "sportmonks",
+            external_id: externalId,
+            season: currentSeason,
+            status: Boolean(sideline.completed) ? "resolved" : "injured",
+            reason: typeName || "Injury",
+            expected_return: asString(sideline.end_date) || null,
+            notes: asString(sideline.games_missed).length > 0
+              ? `games_missed=${asString(sideline.games_missed)}`
+              : null,
+            source_url: null,
+            raw_payload: s,
+            updated_at: new Date().toISOString(),
+          });
         }
       }
 
@@ -668,14 +728,22 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    if (injuriesPayload.length > 0) {
-      await supabase.from("fd_player_injuries").upsert(injuriesPayload, {
+    const uniqueInjuries = Array.from(new Map(
+      injuriesPayload.map((row) => [`${asString(row.player_id)}:${asString(row.season)}:${asString(row.status)}`, row]),
+    ).values());
+
+    const uniqueSuspensions = Array.from(new Map(
+      suspensionsPayload.map((row) => [`${asString(row.player_id)}:${asString(row.season)}`, row]),
+    ).values());
+
+    if (uniqueInjuries.length > 0) {
+      await supabase.from("fd_player_injuries").upsert(uniqueInjuries, {
         onConflict: "provider,external_id",
       });
     }
 
-    if (suspensionsPayload.length > 0) {
-      await supabase.from("fd_player_suspensions").upsert(suspensionsPayload, {
+    if (uniqueSuspensions.length > 0) {
+      await supabase.from("fd_player_suspensions").upsert(uniqueSuspensions, {
         onConflict: "provider,external_id",
       });
     }
@@ -705,8 +773,8 @@ Deno.serve(async (req: Request) => {
         competitionExternalId,
         matchedFixtures,
         upsertedFixtureEvents: eventPayload.length,
-        upsertedInjuries: injuriesPayload.length,
-        upsertedSuspensions: suspensionsPayload.length,
+        upsertedInjuries: uniqueInjuries.length,
+        upsertedSuspensions: uniqueSuspensions.length,
         upsertedPlayerStats: playerStatsPayload.length,
         upsertedGameweekPoints: pointsPayload.length,
         upsertedTeamForm: teamFormPayload.length,
