@@ -110,6 +110,7 @@ function calculateFantasyPoints(params: {
 type PlayerMatchStats = {
   playerId: number;
   fixtureId: number;
+  teamId: number | null;
   season: string;
   gameweek: number;
   minutes: number;
@@ -120,6 +121,38 @@ type PlayerMatchStats = {
   redCards: number;
   saves: number;
   bonus: number;
+};
+
+type FixtureEventPayload = {
+  fixture_id: number;
+  provider: string;
+  external_id: string;
+  event_type: string;
+  minute: number | null;
+  team_id: number | null;
+  player_id: number | null;
+  related_player_id: number | null;
+  description: string | null;
+  raw_event: Json;
+  created_at: string;
+};
+
+type TeamFormPayload = {
+  team_id: number;
+  competition_id: number;
+  season: string;
+  gameweek: number;
+  matches_played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goals_for: number;
+  goals_against: number;
+  form_points: number;
+  expected_goals_for: number;
+  expected_goals_against: number;
+  raw_stats: Json;
+  updated_at: string;
 };
 
 function statsKey(playerId: number, fixtureId: number): string {
@@ -482,6 +515,7 @@ Deno.serve(async (req: Request) => {
 
     const playerByExternalId = new Map<string, { id: number; position: string | null }>();
     const playerPositionById = new Map<number, string | null>();
+    const playerTeamIdById = new Map<number, number | null>();
     const playersByTeamId = new Map<number, PlayerIdentity[]>();
     for (const row of playerMapRows as Array<{ id: number; external_id: string; position: string | null; team_id: number }>) {
       playerByExternalId.set(String(row.external_id), {
@@ -489,6 +523,7 @@ Deno.serve(async (req: Request) => {
         position: row.position,
       });
       playerPositionById.set(row.id, row.position);
+      playerTeamIdById.set(row.id, row.team_id ?? null);
 
       const list = playersByTeamId.get(row.team_id) ?? [];
       list.push({ id: row.id, position: row.position });
@@ -496,9 +531,11 @@ Deno.serve(async (req: Request) => {
     }
 
     const statsByPlayerFixture = new Map<string, PlayerMatchStats>();
+    const fixtureEvents: FixtureEventPayload[] = [];
     let parsedGoalEvents = 0;
     let parsedAssistEvents = 0;
     let parsedCardEvents = 0;
+    let upsertedFixtureEvents = 0;
 
     function ensureStats(playerId: number, fixtureId: number, gameweek: number): PlayerMatchStats {
       const key = statsKey(playerId, fixtureId);
@@ -508,6 +545,7 @@ Deno.serve(async (req: Request) => {
       const created: PlayerMatchStats = {
         playerId,
         fixtureId,
+        teamId: playerTeamIdById.get(playerId) ?? null,
         season: seasonLabel,
         gameweek,
         minutes: 0,
@@ -533,6 +571,7 @@ Deno.serve(async (req: Request) => {
       const goals = Array.isArray(match.goals) ? (match.goals as unknown[]) : [];
       for (const rawGoal of goals) {
         const goal = asObject(rawGoal);
+        const minute = typeof goal.minute === 'number' ? goal.minute : null;
 
         const ownGoal = Boolean(goal.ownGoal);
         const scorerExternalId =
@@ -547,6 +586,19 @@ Deno.serve(async (req: Request) => {
             const stats = ensureStats(scorer.id, fixture.id, gameweek);
             stats.goals += 1;
             parsedGoalEvents += 1;
+            fixtureEvents.push({
+              fixture_id: fixture.id,
+              provider: 'football-data',
+              external_id: `${matchId}:goal:${parsedGoalEvents}`,
+              event_type: 'goal',
+              minute,
+              team_id: playerTeamIdById.get(scorer.id) ?? null,
+              player_id: scorer.id,
+              related_player_id: null,
+              description: 'Goal',
+              raw_event: goal,
+              created_at: new Date().toISOString(),
+            });
           }
         }
 
@@ -561,6 +613,19 @@ Deno.serve(async (req: Request) => {
             const stats = ensureStats(assister.id, fixture.id, gameweek);
             stats.assists += 1;
             parsedAssistEvents += 1;
+            fixtureEvents.push({
+              fixture_id: fixture.id,
+              provider: 'football-data',
+              external_id: `${matchId}:assist:${parsedAssistEvents}`,
+              event_type: 'assist',
+              minute,
+              team_id: playerTeamIdById.get(assister.id) ?? null,
+              player_id: assister.id,
+              related_player_id: scorerExternalId ? (playerByExternalId.get(scorerExternalId)?.id ?? null) : null,
+              description: 'Assist',
+              raw_event: goal,
+              created_at: new Date().toISOString(),
+            });
           }
         }
       }
@@ -583,10 +648,48 @@ Deno.serve(async (req: Request) => {
         if (cardType.includes("red")) {
           stats.redCards += 1;
           parsedCardEvents += 1;
+          fixtureEvents.push({
+            fixture_id: fixture.id,
+            provider: 'football-data',
+            external_id: `${matchId}:card:${parsedCardEvents}:red`,
+            event_type: 'red_card',
+            minute: typeof booking.minute === 'number' ? booking.minute : null,
+            team_id: playerTeamIdById.get(player.id) ?? null,
+            player_id: player.id,
+            related_player_id: null,
+            description: 'Red card',
+            raw_event: booking,
+            created_at: new Date().toISOString(),
+          });
         } else if (cardType.includes("yellow")) {
           stats.yellowCards += 1;
           parsedCardEvents += 1;
+          fixtureEvents.push({
+            fixture_id: fixture.id,
+            provider: 'football-data',
+            external_id: `${matchId}:card:${parsedCardEvents}:yellow`,
+            event_type: 'yellow_card',
+            minute: typeof booking.minute === 'number' ? booking.minute : null,
+            team_id: playerTeamIdById.get(player.id) ?? null,
+            player_id: player.id,
+            related_player_id: null,
+            description: 'Yellow card',
+            raw_event: booking,
+            created_at: new Date().toISOString(),
+          });
         }
+      }
+    }
+
+    if (fixtureEvents.length > 0) {
+      for (const chunk of chunkArray(fixtureEvents, 300)) {
+        const { error: eventsError } = await supabase
+          .from('fd_fixture_events')
+          .upsert(chunk, { onConflict: 'provider,external_id' });
+        if (eventsError) {
+          throw new Error(`Fixture events upsert failed: ${eventsError.message}`);
+        }
+        upsertedFixtureEvents += chunk.length;
       }
     }
 
@@ -648,9 +751,12 @@ Deno.serve(async (req: Request) => {
         season: stats.season,
         gameweek: stats.gameweek,
         fixture_id: stats.fixtureId,
+        team_id: stats.teamId,
         minutes: stats.minutes,
         goals: stats.goals,
         assists: stats.assists,
+        expected_goals: 0,
+        expected_assists: 0,
         clean_sheet: stats.cleanSheet,
         yellow_cards: stats.yellowCards,
         red_cards: stats.redCards,
@@ -658,6 +764,15 @@ Deno.serve(async (req: Request) => {
         bonus: stats.bonus,
         points,
         source: "football-data-events",
+        raw_stats: {
+          source: 'football-data',
+          goals: stats.goals,
+          assists: stats.assists,
+          yellowCards: stats.yellowCards,
+          redCards: stats.redCards,
+          cleanSheet: stats.cleanSheet,
+          bonus: stats.bonus,
+        },
         updated_at: new Date().toISOString(),
       };
     });
@@ -673,6 +788,92 @@ Deno.serve(async (req: Request) => {
       playerGameweekUpserts += chunk.length;
     }
 
+    const teamFormByTeamAndGw = new Map<string, TeamFormPayload>();
+    for (const match of matches) {
+      const homeTeam = (match.homeTeam ?? {}) as Json;
+      const awayTeam = (match.awayTeam ?? {}) as Json;
+      const score = (match.score ?? {}) as Json;
+      const fullTime = (score.fullTime ?? {}) as Json;
+      const homeExternal = String(homeTeam.id ?? "");
+      const awayExternal = String(awayTeam.id ?? "");
+      const homeId = teamIdByExternal.get(homeExternal);
+      const awayId = teamIdByExternal.get(awayExternal);
+      const homeGoals = typeof fullTime.home === 'number' ? fullTime.home : null;
+      const awayGoals = typeof fullTime.away === 'number' ? fullTime.away : null;
+      if (!homeId || !awayId || homeGoals == null || awayGoals == null) continue;
+
+      const matchday = typeof match.matchday === 'number' ? match.matchday : 0;
+      const gameweek = matchday;
+      const homeWon = homeGoals > awayGoals;
+      const awayWon = awayGoals > homeGoals;
+      const homeKey = `${homeId}:${gameweek}`;
+      const awayKey = `${awayId}:${gameweek}`;
+
+      const homeEntry = teamFormByTeamAndGw.get(homeKey) ?? {
+        team_id: homeId,
+        competition_id: competitionId,
+        season: seasonLabel,
+        gameweek,
+        matches_played: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        goals_for: 0,
+        goals_against: 0,
+        form_points: 0,
+        expected_goals_for: 0,
+        expected_goals_against: 0,
+        raw_stats: { source: 'football-data', team: 'home' },
+        updated_at: new Date().toISOString(),
+      };
+      homeEntry.matches_played += 1;
+      homeEntry.goals_for += homeGoals;
+      homeEntry.goals_against += awayGoals;
+      homeEntry.form_points += homeWon ? 3 : (homeGoals === awayGoals ? 1 : 0);
+      homeEntry.wins += homeWon ? 1 : 0;
+      homeEntry.draws += homeGoals === awayGoals ? 1 : 0;
+      homeEntry.losses += awayWon ? 1 : 0;
+      teamFormByTeamAndGw.set(homeKey, homeEntry);
+
+      const awayEntry = teamFormByTeamAndGw.get(awayKey) ?? {
+        team_id: awayId,
+        competition_id: competitionId,
+        season: seasonLabel,
+        gameweek,
+        matches_played: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        goals_for: 0,
+        goals_against: 0,
+        form_points: 0,
+        expected_goals_for: 0,
+        expected_goals_against: 0,
+        raw_stats: { source: 'football-data', team: 'away' },
+        updated_at: new Date().toISOString(),
+      };
+      awayEntry.matches_played += 1;
+      awayEntry.goals_for += awayGoals;
+      awayEntry.goals_against += homeGoals;
+      awayEntry.form_points += awayWon ? 3 : (homeGoals === awayGoals ? 1 : 0);
+      awayEntry.wins += awayWon ? 1 : 0;
+      awayEntry.draws += homeGoals === awayGoals ? 1 : 0;
+      awayEntry.losses += homeWon ? 1 : 0;
+      teamFormByTeamAndGw.set(awayKey, awayEntry);
+    }
+
+    if (teamFormByTeamAndGw.size > 0) {
+      const teamFormPayload = Array.from(teamFormByTeamAndGw.values());
+      for (const chunk of chunkArray(teamFormPayload, 300)) {
+        const { error: formError } = await supabase
+          .from('fd_team_form')
+          .upsert(chunk, { onConflict: 'team_id,season,gameweek' });
+        if (formError) {
+          throw new Error(`Team form upsert failed: ${formError.message}`);
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,
@@ -682,6 +883,8 @@ Deno.serve(async (req: Request) => {
         upsertedFixtures: fixturePayload.length,
         upsertedPlayers: playerUpserts,
         upsertedPlayerGameweekPoints: playerGameweekUpserts,
+        upsertedFixtureEvents,
+        upsertedTeamFormRows: teamFormByTeamAndGw.size,
         parsedGoalEvents,
         parsedAssistEvents,
         parsedCardEvents,

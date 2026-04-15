@@ -30,6 +30,17 @@ class TeamProvider with ChangeNotifier {
   static const String _guestUid = 'guest';
   static const String _lastUidPrefsKey = 'team_cache_last_uid';
 
+  bool get _isAuthenticatedUser =>
+      (firebase_auth.FirebaseAuth.instance.currentUser?.uid.isNotEmpty ?? false);
+
+  bool _canUseAuthenticatedFallback(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('failed to fetch') ||
+        message.contains('localhost:3000') ||
+        message.contains('connection refused') ||
+        message.contains('clientexception');
+  }
+
   TeamProvider(this._teamService) {
     _authSubscription = firebase_auth.FirebaseAuth.instance
         .authStateChanges()
@@ -127,6 +138,14 @@ class TeamProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      if (_isAuthenticatedUser && !_canUseAuthenticatedFallback(e)) {
+        _isLoading = false;
+        _errorMessage =
+            'Failed to save team to your account. Please try again. ($e)';
+        notifyListeners();
+        rethrow;
+      }
+
       try {
         final effectivePlayers = (selectedPlayers != null && selectedPlayers.isNotEmpty)
             ? selectedPlayers
@@ -196,6 +215,14 @@ class TeamProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      if (_isAuthenticatedUser && !_canUseAuthenticatedFallback(e)) {
+        _isLoading = false;
+        _errorMessage =
+            'Failed to update team on your account. Please try again. ($e)';
+        notifyListeners();
+        rethrow;
+      }
+
       try {
         if (_team == null) {
           throw Exception('Team not found');
