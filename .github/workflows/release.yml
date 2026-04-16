@@ -16,6 +16,10 @@ on:
     tags:
       - 'v*'
 
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  RELEASE_PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || 'false' }}
+
 permissions:
   contents: write
 
@@ -127,18 +131,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Resolve release metadata
-      id: release_meta
-      shell: bash
-      run: |
-        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
-          echo "prerelease=${{ inputs.prerelease }}" >> "$GITHUB_OUTPUT"
-        else
-          echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          echo "prerelease=false" >> "$GITHUB_OUTPUT"
-        fi
-
       - name: Download Android artifact
         uses: actions/download-artifact@v4
         with:
@@ -160,10 +152,10 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.release_meta.outputs.tag }}
-          name: ${{ steps.release_meta.outputs.tag }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
           draft: false
-          prerelease: ${{ steps.release_meta.outputs.prerelease }}
+          prerelease: ${{ env.RELEASE_PRERELEASE }}
           files: |
             artifacts/app-release.apk
             artifacts/web-build.zip
