@@ -42,6 +42,13 @@ Two workflows are configured in `.github/workflows`:
 	 - `prerelease`: `true` for prerelease, `false` for stable
 4. Run workflow and wait for all jobs to complete.
 
+Or trigger automatically by pushing a version tag:
+
+```powershell
+git tag v1.0.1
+git push origin v1.0.1
+```
+
 ### Release Artifacts Produced
 
 - Android: `app-release.apk`
