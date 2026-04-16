@@ -38,14 +38,14 @@ class InjuryRisk extends Equatable {
 
   @override
   List<Object?> get props => [
-        playerId,
-        playerName,
-        currentInjuries,
-        currentSuspensions,
-        riskScore,
-        riskLevel,
-        expectedReturnDate,
-      ];
+    playerId,
+    playerName,
+    currentInjuries,
+    currentSuspensions,
+    riskScore,
+    riskLevel,
+    expectedReturnDate,
+  ];
 }
 
 class TransferRecommendation extends Equatable {
@@ -75,17 +75,17 @@ class TransferRecommendation extends Equatable {
 
   @override
   List<Object?> get props => [
-        playerId,
-        playerName,
-        position,
-        estimatedValue,
-        estimatedPrice,
-        recentPointsAverage,
-        expectedGoals,
-        expectedAssists,
-        action,
-        priority,
-      ];
+    playerId,
+    playerName,
+    position,
+    estimatedValue,
+    estimatedPrice,
+    recentPointsAverage,
+    expectedGoals,
+    expectedAssists,
+    action,
+    priority,
+  ];
 }
 
 class TeamAnalytics extends Equatable {
@@ -109,12 +109,12 @@ class TeamAnalytics extends Equatable {
 
   @override
   List<Object?> get props => [
-        teamId,
-        teamName,
-        formTrends,
-        injuryRisks,
-        transferRecommendations,
-        teamFormScore,
-        highPriorityTransfers,
-      ];
+    teamId,
+    teamName,
+    formTrends,
+    injuryRisks,
+    transferRecommendations,
+    teamFormScore,
+    highPriorityTransfers,
+  ];
 }

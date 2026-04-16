@@ -83,7 +83,9 @@ Future<void> _bootstrapAndRun() async {
 
   // Initialize Firebase
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     await ErrorReportingService.instance.initialize();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await NotificationService.instance.initialize();
@@ -124,25 +126,23 @@ class MyApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => AuthProvider(authService),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => TeamProvider(teamService),
-        ),
+        ChangeNotifierProvider(create: (_) => AuthProvider(authService)),
+        ChangeNotifierProvider(create: (_) => TeamProvider(teamService)),
         if (supabaseReady)
           ChangeNotifierProvider(
             create: (_) => PlayerProvider(PlayerService()),
           ),
         if (supabaseReady)
           ChangeNotifierProvider(
-            create: (_) =>
-                OpsDashboardProvider(OpsDashboardService(Supabase.instance.client)),
+            create: (_) => OpsDashboardProvider(
+              OpsDashboardService(Supabase.instance.client),
+            ),
           ),
         if (supabaseReady)
           ChangeNotifierProvider(
-            create: (_) =>
-                TeamAnalyticsProvider(TeamAnalyticsService(Supabase.instance.client)),
+            create: (_) => TeamAnalyticsProvider(
+              TeamAnalyticsService(Supabase.instance.client),
+            ),
           ),
       ],
       child: MaterialApp(
@@ -172,16 +172,14 @@ class MyApp extends StatelessWidget {
           builder: (context, authProvider, _) {
             if (authProvider.status == AuthStatus.initial) {
               return const Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                body: Center(child: CircularProgressIndicator()),
               );
             }
-            
+
             if (authProvider.isAuthenticated) {
               return const HomeScreen();
             }
-            
+
             return const LoginScreen();
           },
         ),

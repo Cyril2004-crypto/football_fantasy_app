@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 import '../models/league.dart';
@@ -38,10 +38,7 @@ class _LeagueDetailsScreenState extends State<LeagueDetailsScreen> {
         title: Text(widget.league.name),
         backgroundColor: AppColors.primary,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refresh,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
         ],
       ),
       body: FutureBuilder<List<LeagueStanding>>(
@@ -66,9 +63,7 @@ class _LeagueDetailsScreenState extends State<LeagueDetailsScreen> {
 
           final standings = snapshot.data ?? const <LeagueStanding>[];
           if (standings.isEmpty) {
-            return const Center(
-              child: Text('No standings available yet.'),
-            );
+            return const Center(child: Text('No standings available yet.'));
           }
 
           return Column(
@@ -180,5 +175,3 @@ class _LeagueSummaryCard extends StatelessWidget {
     );
   }
 }
-
-

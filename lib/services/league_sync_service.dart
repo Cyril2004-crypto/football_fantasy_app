@@ -29,7 +29,9 @@ class LeagueSyncService {
         body: jsonEncode({
           'action': 'syncTeam',
           'userId': _authService.currentUser?.id,
-          'userName': _authService.currentUser?.displayName ?? _authService.currentUser?.email,
+          'userName':
+              _authService.currentUser?.displayName ??
+              _authService.currentUser?.email,
           'teamName': team.name,
           'totalPoints': team.totalPoints,
           'gameweekPoints': team.gameweekPoints,

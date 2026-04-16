@@ -18,8 +18,9 @@ class ErrorReportingService {
 
     try {
       final shouldEnableCollection = !kDebugMode;
-      await FirebaseCrashlytics.instance
-          .setCrashlyticsCollectionEnabled(shouldEnableCollection);
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
+        shouldEnableCollection,
+      );
       _isEnabled = shouldEnableCollection;
       debugPrint('✅ Crash reporting ${_isEnabled ? 'enabled' : 'disabled'}');
     } catch (e) {

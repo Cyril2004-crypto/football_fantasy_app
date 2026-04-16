@@ -20,8 +20,14 @@ void main() {
       expect(job.jobName, 'notify-ingestion-alerts');
       expect(job.schedule, '9,29,49 * * * *');
       expect(job.isActive, isTrue);
-      expect(job.lastRunStart, DateTime.parse('2026-04-16T07:09:00.015792+00:00'));
-      expect(job.lastRunEnd, DateTime.parse('2026-04-16T07:09:00.029139+00:00'));
+      expect(
+        job.lastRunStart,
+        DateTime.parse('2026-04-16T07:09:00.015792+00:00'),
+      );
+      expect(
+        job.lastRunEnd,
+        DateTime.parse('2026-04-16T07:09:00.029139+00:00'),
+      );
       expect(job.lastRunStatus, 'succeeded');
       expect(job.lastRunMessage, '1 row');
     });

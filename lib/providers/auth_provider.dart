@@ -6,7 +6,7 @@ enum AuthStatus { initial, authenticated, unauthenticated, loading, error }
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService;
-  
+
   User? _user;
   AuthStatus _status = AuthStatus.initial;
   String? _errorMessage;
@@ -23,8 +23,12 @@ class AuthProvider with ChangeNotifier {
   void _initAuth() {
     _authService.authStateChanges.listen((user) {
       _user = user;
-      _status = user != null ? AuthStatus.authenticated : AuthStatus.unauthenticated;
-      debugPrint('🔐 Auth state changed: ${user != null ? 'Authenticated (${user.email})' : 'Unauthenticated'}');
+      _status = user != null
+          ? AuthStatus.authenticated
+          : AuthStatus.unauthenticated;
+      debugPrint(
+        '🔐 Auth state changed: ${user != null ? 'Authenticated (${user.email})' : 'Unauthenticated'}',
+      );
       notifyListeners();
     });
   }
@@ -46,13 +50,21 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> signUpWithEmailPassword(String email, String password, String displayName) async {
+  Future<void> signUpWithEmailPassword(
+    String email,
+    String password,
+    String displayName,
+  ) async {
     try {
       _status = AuthStatus.loading;
       _errorMessage = null;
       notifyListeners();
 
-      _user = await _authService.signUpWithEmailPassword(email, password, displayName);
+      _user = await _authService.signUpWithEmailPassword(
+        email,
+        password,
+        displayName,
+      );
       _status = AuthStatus.authenticated;
       notifyListeners();
     } catch (e) {

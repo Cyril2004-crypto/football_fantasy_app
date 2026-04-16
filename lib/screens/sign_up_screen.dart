@@ -68,9 +68,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppColors.primaryGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -87,9 +85,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   Text(
                     AppStrings.appName,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: AppColors.textLight,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      color: AppColors.textLight,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 48),
                   Card(
@@ -129,10 +127,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               controller: _confirmPasswordController,
                               label: AppStrings.confirmPassword,
                               obscureText: true,
-                              validator: (value) => Validators.confirmPasswordValidator(
-                                value,
-                                _passwordController.text,
-                              ),
+                              validator: (value) =>
+                                  Validators.confirmPasswordValidator(
+                                    value,
+                                    _passwordController.text,
+                                  ),
                               prefixIcon: Icons.lock_outline,
                             ),
                             const SizedBox(height: 24),

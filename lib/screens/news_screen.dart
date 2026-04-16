@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 import '../services/api_service.dart';
@@ -13,8 +13,9 @@ class NewsScreen extends StatefulWidget {
 }
 
 class _NewsScreenState extends State<NewsScreen> {
-  final SportmonksService _sportmonksService =
-      SportmonksService(ApiService(AuthService()));
+  final SportmonksService _sportmonksService = SportmonksService(
+    ApiService(AuthService()),
+  );
 
   late Future<List<_NewsItem>> _future;
   String? _statusMessage;
@@ -109,21 +110,21 @@ class _NewsScreenState extends State<NewsScreen> {
           continue;
         }
 
-        final title = _readString(line, const ['headline', 'title']) ??
+        final title =
+            _readString(line, const ['headline', 'title']) ??
             _readString(blockMap, const ['headline', 'title']) ??
             'Match Update';
-        final content = _readString(
-              line,
-              const ['content', 'summary', 'description', 'text'],
-            ) ??
+        final content =
+            _readString(line, const [
+              'content',
+              'summary',
+              'description',
+              'text',
+            ]) ??
             'No details available.';
 
         items.add(
-          _NewsItem(
-            title: title,
-            description: content,
-            source: fixtureTitle,
-          ),
+          _NewsItem(title: title, description: content, source: fixtureTitle),
         );
       }
     }
@@ -136,7 +137,8 @@ class _NewsScreenState extends State<NewsScreen> {
         ? fixture['participants'] as List<dynamic>
         : const <dynamic>[];
 
-    if (participants.length <= index || participants[index] is! Map<String, dynamic>) {
+    if (participants.length <= index ||
+        participants[index] is! Map<String, dynamic>) {
       return index == 0 ? 'Home Team' : 'Away Team';
     }
 
@@ -223,7 +225,11 @@ class _NewsScreenState extends State<NewsScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(24),
                 children: [
-                  const Icon(Icons.info_outline, size: 44, color: AppColors.secondary),
+                  const Icon(
+                    Icons.info_outline,
+                    size: 44,
+                    color: AppColors.secondary,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     _statusMessage ?? 'No news available right now',
@@ -249,21 +255,20 @@ class _NewsScreenState extends State<NewsScreen> {
                       children: [
                         Text(
                           item.title,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           item.description,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.textSecondary),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           item.source,
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -292,5 +297,3 @@ class _NewsItem {
     required this.source,
   });
 }
-
-

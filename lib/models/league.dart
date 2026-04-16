@@ -29,7 +29,8 @@ class League extends Equatable {
       code: json['code'] as String?,
       type: json['type'] == 'public' ? LeagueType.public : LeagueType.private,
       createdBy: (json['createdBy'] ?? json['created_by_user_id']) as String,
-      membersCount: (json['membersCount'] ?? json['members_count']) as int? ?? 0,
+      membersCount:
+          (json['membersCount'] ?? json['members_count']) as int? ?? 0,
       createdAt: DateTime.parse(createdAtValue as String),
     );
   }
@@ -47,7 +48,15 @@ class League extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, name, code, type, createdBy, membersCount, createdAt];
+  List<Object?> get props => [
+    id,
+    name,
+    code,
+    type,
+    createdBy,
+    membersCount,
+    createdAt,
+  ];
 }
 
 class LeagueStanding extends Equatable {
@@ -90,5 +99,12 @@ class LeagueStanding extends Equatable {
   }
 
   @override
-  List<Object?> get props => [userId, userName, teamName, rank, totalPoints, gameweekPoints];
+  List<Object?> get props => [
+    userId,
+    userName,
+    teamName,
+    rank,
+    totalPoints,
+    gameweekPoints,
+  ];
 }

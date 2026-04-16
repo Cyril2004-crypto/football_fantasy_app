@@ -47,10 +47,6 @@ class TeamAnalyticsProvider with ChangeNotifier {
     required String teamName,
     required List<dynamic> players,
   }) async {
-    await analyzeTeam(
-      teamId: teamId,
-      teamName: teamName,
-      players: players,
-    );
+    await analyzeTeam(teamId: teamId, teamName: teamName, players: players);
   }
 }

@@ -4,7 +4,7 @@ import '../services/player_service.dart';
 
 class PlayerProvider with ChangeNotifier {
   final PlayerService _playerService;
-  
+
   List<Player> _players = [];
   List<Player> _filteredPlayers = [];
   bool _isLoading = false;
@@ -14,8 +14,8 @@ class PlayerProvider with ChangeNotifier {
 
   PlayerProvider(this._playerService);
 
-  List<Player> get players => _filteredPlayers.isEmpty && _searchQuery.isEmpty 
-      ? _players 
+  List<Player> get players => _filteredPlayers.isEmpty && _searchQuery.isEmpty
+      ? _players
       : _filteredPlayers;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -65,9 +65,11 @@ class PlayerProvider with ChangeNotifier {
       _filteredPlayers = _players;
     } else {
       _filteredPlayers = _players
-          .where((player) =>
-              player.name.toLowerCase().contains(query.toLowerCase()) ||
-              player.clubName.toLowerCase().contains(query.toLowerCase()))
+          .where(
+            (player) =>
+                player.name.toLowerCase().contains(query.toLowerCase()) ||
+                player.clubName.toLowerCase().contains(query.toLowerCase()),
+          )
           .toList();
     }
     notifyListeners();

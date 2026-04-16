@@ -21,7 +21,7 @@ class TeamProvider with ChangeNotifier {
       PointsCalculatorService();
   final PlayerService _playerService = PlayerService();
   LeagueSyncService? _leagueSyncService;
-  
+
   Team? _team;
   bool _isLoading = false;
   String? _errorMessage;
@@ -31,7 +31,8 @@ class TeamProvider with ChangeNotifier {
   static const String _lastUidPrefsKey = 'team_cache_last_uid';
 
   bool get _isAuthenticatedUser =>
-      (firebase_auth.FirebaseAuth.instance.currentUser?.uid.isNotEmpty ?? false);
+      (firebase_auth.FirebaseAuth.instance.currentUser?.uid.isNotEmpty ??
+      false);
 
   bool _canUseAuthenticatedFallback(Object error) {
     final message = error.toString().toLowerCase();
@@ -41,7 +42,8 @@ class TeamProvider with ChangeNotifier {
         message.contains('clientexception');
   }
 
-  LeagueSyncService get _syncService => _leagueSyncService ??= LeagueSyncService();
+  LeagueSyncService get _syncService =>
+      _leagueSyncService ??= LeagueSyncService();
 
   TeamProvider(this._teamService, {bool disableAuthSubscription = false}) {
     if (disableAuthSubscription) {
@@ -51,15 +53,15 @@ class TeamProvider with ChangeNotifier {
     _authSubscription = firebase_auth.FirebaseAuth.instance
         .authStateChanges()
         .listen((user) async {
-      if (user == null) {
-        return;
-      }
+          if (user == null) {
+            return;
+          }
 
-      await _migrateGuestCacheToUser(user.uid);
-      if (!_isLoading) {
-        await loadMyTeam();
-      }
-    });
+          await _migrateGuestCacheToUser(user.uid);
+          if (!_isLoading) {
+            await loadMyTeam();
+          }
+        });
   }
 
   Team? get team => _team;
@@ -79,7 +81,9 @@ class TeamProvider with ChangeNotifier {
 
       if (remoteTeam == null) {
         _team = cachedTeam;
-      } else if (remoteTeam.players.isEmpty && cachedTeam != null && cachedTeam.players.isNotEmpty) {
+      } else if (remoteTeam.players.isEmpty &&
+          cachedTeam != null &&
+          cachedTeam.players.isNotEmpty) {
         // Keep richer cached squad when backend payload omits players.
         _team = cachedTeam.copyWith(
           id: remoteTeam.id,
@@ -129,13 +133,21 @@ class TeamProvider with ChangeNotifier {
       notifyListeners();
 
       _team = await _teamService.createTeam(teamName, playerIds);
-      if ((_team?.players.isEmpty ?? true) && selectedPlayers != null && selectedPlayers.isNotEmpty) {
-        final totalPrice = selectedPlayers.fold<double>(0.0, (sum, p) => sum + p.price);
+      if ((_team?.players.isEmpty ?? true) &&
+          selectedPlayers != null &&
+          selectedPlayers.isNotEmpty) {
+        final totalPrice = selectedPlayers.fold<double>(
+          0.0,
+          (sum, p) => sum + p.price,
+        );
         _team = _team!.copyWith(
           players: selectedPlayers,
           remainingBudget: AppConfig.teamBudget - totalPrice,
-          totalPoints: _pointsCalculatorService.calculateStoredTeamTotalPoints(selectedPlayers),
-          gameweekPoints: _pointsCalculatorService.calculateStoredTeamGameweekPoints(selectedPlayers),
+          totalPoints: _pointsCalculatorService.calculateStoredTeamTotalPoints(
+            selectedPlayers,
+          ),
+          gameweekPoints: _pointsCalculatorService
+              .calculateStoredTeamGameweekPoints(selectedPlayers),
           updatedAt: DateTime.now(),
         );
       }
@@ -153,11 +165,12 @@ class TeamProvider with ChangeNotifier {
       }
 
       try {
-        final effectivePlayers = (selectedPlayers != null && selectedPlayers.isNotEmpty)
+        final effectivePlayers =
+            (selectedPlayers != null && selectedPlayers.isNotEmpty)
             ? selectedPlayers
             : MockData.getMockPlayers()
-            .where((p) => playerIds.contains(p.id))
-            .toList();
+                  .where((p) => playerIds.contains(p.id))
+                  .toList();
 
         final totalPrice = effectivePlayers.fold<double>(
           0.0,
@@ -166,12 +179,14 @@ class TeamProvider with ChangeNotifier {
 
         _team = Team(
           id: const Uuid().v4(),
-          userId: firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? _guestUid,
+          userId:
+              firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? _guestUid,
           name: teamName,
-            players: effectivePlayers,
+          players: effectivePlayers,
           remainingBudget: AppConfig.teamBudget - totalPrice,
-          totalPoints: _pointsCalculatorService
-              .calculateStoredTeamTotalPoints(effectivePlayers),
+          totalPoints: _pointsCalculatorService.calculateStoredTeamTotalPoints(
+            effectivePlayers,
+          ),
           gameweekPoints: _pointsCalculatorService
               .calculateStoredTeamGameweekPoints(effectivePlayers),
           createdAt: DateTime.now(),
@@ -200,19 +215,27 @@ class TeamProvider with ChangeNotifier {
   }) async {
     try {
       if (_team == null) return;
-      
+
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
 
       _team = await _teamService.updateTeam(_team!.id, playerIds);
-      if ((_team?.players.isEmpty ?? true) && selectedPlayers != null && selectedPlayers.isNotEmpty) {
-        final totalPrice = selectedPlayers.fold<double>(0.0, (sum, p) => sum + p.price);
+      if ((_team?.players.isEmpty ?? true) &&
+          selectedPlayers != null &&
+          selectedPlayers.isNotEmpty) {
+        final totalPrice = selectedPlayers.fold<double>(
+          0.0,
+          (sum, p) => sum + p.price,
+        );
         _team = _team!.copyWith(
           players: selectedPlayers,
           remainingBudget: AppConfig.teamBudget - totalPrice,
-          totalPoints: _pointsCalculatorService.calculateStoredTeamTotalPoints(selectedPlayers),
-          gameweekPoints: _pointsCalculatorService.calculateStoredTeamGameweekPoints(selectedPlayers),
+          totalPoints: _pointsCalculatorService.calculateStoredTeamTotalPoints(
+            selectedPlayers,
+          ),
+          gameweekPoints: _pointsCalculatorService
+              .calculateStoredTeamGameweekPoints(selectedPlayers),
           updatedAt: DateTime.now(),
         );
       }
@@ -234,11 +257,12 @@ class TeamProvider with ChangeNotifier {
           throw Exception('Team not found');
         }
 
-        final effectivePlayers = (selectedPlayers != null && selectedPlayers.isNotEmpty)
+        final effectivePlayers =
+            (selectedPlayers != null && selectedPlayers.isNotEmpty)
             ? selectedPlayers
             : MockData.getMockPlayers()
-            .where((p) => playerIds.contains(p.id))
-            .toList();
+                  .where((p) => playerIds.contains(p.id))
+                  .toList();
 
         final totalPrice = effectivePlayers.fold<double>(
           0.0,
@@ -248,8 +272,9 @@ class TeamProvider with ChangeNotifier {
         _team = _team!.copyWith(
           players: effectivePlayers,
           remainingBudget: AppConfig.teamBudget - totalPrice,
-          totalPoints: _pointsCalculatorService
-              .calculateStoredTeamTotalPoints(effectivePlayers),
+          totalPoints: _pointsCalculatorService.calculateStoredTeamTotalPoints(
+            effectivePlayers,
+          ),
           gameweekPoints: _pointsCalculatorService
               .calculateStoredTeamGameweekPoints(effectivePlayers),
           updatedAt: DateTime.now(),
@@ -278,7 +303,8 @@ class TeamProvider with ChangeNotifier {
   }
 
   String _cacheKey() {
-    final uid = firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? _guestUid;
+    final uid =
+        firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? _guestUid;
     return _cacheKeyForUid(uid);
   }
 
@@ -288,11 +314,15 @@ class TeamProvider with ChangeNotifier {
 
   Future<void> _saveTeamToCache(Team team) async {
     final prefs = await SharedPreferences.getInstance();
-    final uid = firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? team.userId;
+    final uid =
+        firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? team.userId;
     final effectiveUid = uid.isEmpty ? _guestUid : uid;
 
     final normalizedTeam = team.copyWith(userId: effectiveUid);
-    await prefs.setString(_cacheKeyForUid(effectiveUid), jsonEncode(normalizedTeam.toJson()));
+    await prefs.setString(
+      _cacheKeyForUid(effectiveUid),
+      jsonEncode(normalizedTeam.toJson()),
+    );
     await prefs.setString(_lastUidPrefsKey, effectiveUid);
 
     if (effectiveUid != _guestUid) {
@@ -318,7 +348,9 @@ class TeamProvider with ChangeNotifier {
 
       final json = jsonDecode(raw) as Map<String, dynamic>;
       final team = Team.fromJson(json);
-      if (currentUid != null && currentUid.isNotEmpty && team.userId != currentUid) {
+      if (currentUid != null &&
+          currentUid.isNotEmpty &&
+          team.userId != currentUid) {
         return team.copyWith(userId: currentUid);
       }
       return team;
@@ -379,8 +411,9 @@ class TeamProvider with ChangeNotifier {
 
       return team.copyWith(
         players: mergedPlayers,
-        totalPoints:
-            _pointsCalculatorService.calculateStoredTeamTotalPoints(mergedPlayers),
+        totalPoints: _pointsCalculatorService.calculateStoredTeamTotalPoints(
+          mergedPlayers,
+        ),
         gameweekPoints: _pointsCalculatorService
             .calculateStoredTeamGameweekPoints(mergedPlayers),
         updatedAt: DateTime.now(),

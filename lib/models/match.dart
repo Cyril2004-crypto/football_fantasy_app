@@ -99,18 +99,18 @@ class Match extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        homeTeamId,
-        homeTeamName,
-        homeTeamBadge,
-        awayTeamId,
-        awayTeamName,
-        awayTeamBadge,
-        homeScore,
-        awayScore,
-        status,
-        kickoffTime,
-        gameweek,
-        venue,
-      ];
+    id,
+    homeTeamId,
+    homeTeamName,
+    homeTeamBadge,
+    awayTeamId,
+    awayTeamName,
+    awayTeamBadge,
+    homeScore,
+    awayScore,
+    status,
+    kickoffTime,
+    gameweek,
+    venue,
+  ];
 }

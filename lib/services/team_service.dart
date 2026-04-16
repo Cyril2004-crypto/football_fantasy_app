@@ -21,13 +21,10 @@ class TeamService {
   // Create team
   Future<Team> createTeam(String teamName, List<String> playerIds) async {
     try {
-      final response = await _apiService.post(
-        ApiEndpoints.createTeam,
-        {
-          'name': teamName,
-          'playerIds': playerIds,
-        },
-      );
+      final response = await _apiService.post(ApiEndpoints.createTeam, {
+        'name': teamName,
+        'playerIds': playerIds,
+      });
       return Team.fromJson(response['data'] as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to create team: $e');
@@ -37,13 +34,10 @@ class TeamService {
   // Update team
   Future<Team> updateTeam(String teamId, List<String> playerIds) async {
     try {
-      final response = await _apiService.put(
-        ApiEndpoints.updateTeam,
-        {
-          'teamId': teamId,
-          'playerIds': playerIds,
-        },
-      );
+      final response = await _apiService.put(ApiEndpoints.updateTeam, {
+        'teamId': teamId,
+        'playerIds': playerIds,
+      });
       return Team.fromJson(response['data'] as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Failed to update team: $e');

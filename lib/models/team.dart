@@ -29,7 +29,8 @@ class Team extends Equatable {
       id: json['id'] as String,
       userId: json['userId'] as String,
       name: json['name'] as String,
-      players: (json['players'] as List?)
+      players:
+          (json['players'] as List?)
               ?.map((p) => Player.fromJson(p as Map<String, dynamic>))
               .toList() ??
           [],
@@ -83,14 +84,14 @@ class Team extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        userId,
-        name,
-        players,
-        remainingBudget,
-        totalPoints,
-        gameweekPoints,
-        createdAt,
-        updatedAt,
-      ];
+    id,
+    userId,
+    name,
+    players,
+    remainingBudget,
+    totalPoints,
+    gameweekPoints,
+    createdAt,
+    updatedAt,
+  ];
 }

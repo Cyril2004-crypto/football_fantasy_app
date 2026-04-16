@@ -112,7 +112,12 @@ class _FakeTeamAnalyticsService extends TeamAnalyticsService {
       teamName: teamName,
       formTrends: [
         FormTrend(gameweek: 1, points: 10, windowAverage: 8.0, trend: 'up'),
-        FormTrend(gameweek: 2, points: 14, windowAverage: 11.0, trend: 'stable'),
+        FormTrend(
+          gameweek: 2,
+          points: 14,
+          windowAverage: 11.0,
+          trend: 'stable',
+        ),
       ],
       injuryRisks: [
         InjuryRisk(
@@ -179,8 +184,8 @@ class _StaticTeamAnalyticsProvider extends TeamAnalyticsProvider {
 
 class _StaticTeamProvider extends TeamProvider {
   _StaticTeamProvider(Team team)
-      : _team = team,
-        super(_FakeTeamService(), disableAuthSubscription: true);
+    : _team = team,
+      super(_FakeTeamService(), disableAuthSubscription: true);
 
   final Team _team;
 
@@ -334,7 +339,9 @@ void main() {
     expect(find.text('No data available'), findsOneWidget);
   });
 
-  testWidgets('Team analytics screen renders analytics sections', (tester) async {
+  testWidgets('Team analytics screen renders analytics sections', (
+    tester,
+  ) async {
     final team = _buildTeam();
 
     await tester.pumpWidget(
@@ -344,8 +351,18 @@ void main() {
             teamId: team.id,
             teamName: team.name,
             formTrends: [
-              FormTrend(gameweek: 1, points: 10, windowAverage: 8.0, trend: 'up'),
-              FormTrend(gameweek: 2, points: 14, windowAverage: 11.0, trend: 'stable'),
+              FormTrend(
+                gameweek: 1,
+                points: 10,
+                windowAverage: 8.0,
+                trend: 'up',
+              ),
+              FormTrend(
+                gameweek: 2,
+                points: 14,
+                windowAverage: 11.0,
+                trend: 'stable',
+              ),
             ],
             injuryRisks: [
               InjuryRisk(
@@ -406,42 +423,43 @@ void main() {
     expect(find.text('No analytics available'), findsOneWidget);
   });
 
-  testWidgets('Team status screen opens team analytics from the real button path', (tester) async {
-    final team = _buildTeam();
+  testWidgets(
+    'Team status screen opens team analytics from the real button path',
+    (tester) async {
+      final team = _buildTeam();
 
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<TeamProvider>.value(
-            value: _StaticTeamProvider(team),
-          ),
-          ChangeNotifierProvider<TeamAnalyticsProvider>.value(
-            value: _StaticTeamAnalyticsProvider(
-              analytics: TeamAnalytics(
-                teamId: team.id,
-                teamName: team.name,
-                formTrends: const [],
-                injuryRisks: const [],
-                transferRecommendations: const [],
-                teamFormScore: 50,
-                highPriorityTransfers: 0,
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<TeamProvider>.value(
+              value: _StaticTeamProvider(team),
+            ),
+            ChangeNotifierProvider<TeamAnalyticsProvider>.value(
+              value: _StaticTeamAnalyticsProvider(
+                analytics: TeamAnalytics(
+                  teamId: team.id,
+                  teamName: team.name,
+                  formTrends: const [],
+                  injuryRisks: const [],
+                  transferRecommendations: const [],
+                  teamFormScore: 50,
+                  highPriorityTransfers: 0,
+                ),
               ),
             ),
-          ),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(body: TeamStatusScreen()),
+          ],
+          child: const MaterialApp(home: Scaffold(body: TeamStatusScreen())),
         ),
-      ),
-    );
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Open Team Analytics'));
-    await tester.tap(find.text('Open Team Analytics'));
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Open Team Analytics'));
+      await tester.tap(find.text('Open Team Analytics'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Test XI Analytics'), findsOneWidget);
-    expect(find.text('Team Form Score'), findsOneWidget);
-  });
+      expect(find.text('Test XI Analytics'), findsOneWidget);
+      expect(find.text('Team Form Score'), findsOneWidget);
+    },
+  );
 }

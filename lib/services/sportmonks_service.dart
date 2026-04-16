@@ -79,16 +79,22 @@ class SportmonksService {
       if (eventType.contains('goal')) {
         final scorerId = _extractPlayerId(event['player']);
         if (scorerId != null && positionsByPlayerId.containsKey(scorerId)) {
-          goalsByPlayerId.update(scorerId, (value) => value + 1,
-              ifAbsent: () => 1);
+          goalsByPlayerId.update(
+            scorerId,
+            (value) => value + 1,
+            ifAbsent: () => 1,
+          );
         }
       }
 
       if (eventType.contains('assist')) {
         final assistId = _extractPlayerId(event['player']);
         if (assistId != null && positionsByPlayerId.containsKey(assistId)) {
-          assistsByPlayerId.update(assistId, (value) => value + 1,
-              ifAbsent: () => 1);
+          assistsByPlayerId.update(
+            assistId,
+            (value) => value + 1,
+            ifAbsent: () => 1,
+          );
         }
       }
     }

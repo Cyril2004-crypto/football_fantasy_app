@@ -15,10 +15,7 @@ class ApiService {
     try {
       final response = await http.get(
         Uri.parse(endpoint),
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-        },
+        headers: {'Content-Type': 'application/json', ...headers},
       );
 
       return _handleResponse(response);
@@ -30,7 +27,9 @@ class ApiService {
   // Make authenticated GET request
   Future<Map<String, dynamic>> get(String endpoint) async {
     try {
-      final token = _authService == null ? null : await _authService.getIdToken();
+      final token = _authService == null
+          ? null
+          : await _authService.getIdToken();
       final response = await http.get(
         Uri.parse(endpoint),
         headers: {
@@ -46,9 +45,14 @@ class ApiService {
   }
 
   // Make authenticated POST request
-  Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> post(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
     try {
-      final token = _authService == null ? null : await _authService.getIdToken();
+      final token = _authService == null
+          ? null
+          : await _authService.getIdToken();
       final response = await http.post(
         Uri.parse(endpoint),
         headers: {
@@ -65,9 +69,14 @@ class ApiService {
   }
 
   // Make authenticated PUT request
-  Future<Map<String, dynamic>> put(String endpoint, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> put(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
     try {
-      final token = _authService == null ? null : await _authService.getIdToken();
+      final token = _authService == null
+          ? null
+          : await _authService.getIdToken();
       final response = await http.put(
         Uri.parse(endpoint),
         headers: {
@@ -86,7 +95,9 @@ class ApiService {
   // Make authenticated DELETE request
   Future<Map<String, dynamic>> delete(String endpoint) async {
     try {
-      final token = _authService == null ? null : await _authService.getIdToken();
+      final token = _authService == null
+          ? null
+          : await _authService.getIdToken();
       final response = await http.delete(
         Uri.parse(endpoint),
         headers: {
@@ -116,7 +127,10 @@ class ApiService {
       throw Exception('Server error. Please try again later');
     } else {
       final errorBody = json.decode(response.body);
-      throw Exception(errorBody['message'] ?? 'Request failed with status: ${response.statusCode}');
+      throw Exception(
+        errorBody['message'] ??
+            'Request failed with status: ${response.statusCode}',
+      );
     }
   }
 

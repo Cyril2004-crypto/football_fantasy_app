@@ -52,19 +52,19 @@ class IngestionAlert extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        source,
-        alertCode,
-        severity,
-        message,
-        context,
-        firstSeenAt,
-        lastSeenAt,
-        occurrenceCount,
-        isActive,
-        resolvedAt,
-        lastNotifiedAt,
-      ];
+    id,
+    source,
+    alertCode,
+    severity,
+    message,
+    context,
+    firstSeenAt,
+    lastSeenAt,
+    occurrenceCount,
+    isActive,
+    resolvedAt,
+    lastNotifiedAt,
+  ];
 }
 
 class HealthSnapshot extends Equatable {
@@ -121,21 +121,21 @@ class HealthSnapshot extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        source,
-        snapshotAt,
-        teamsCount,
-        fixturesCount,
-        playersCount,
-        gameweekPointsCount,
-        fixtureEventsCount,
-        teamFormCount,
-        playerMatchStatsCount,
-        playerInjuriesCount,
-        playerSuspensionsCount,
-        rowsWithXg,
-        rowsWithXa,
-      ];
+    id,
+    source,
+    snapshotAt,
+    teamsCount,
+    fixturesCount,
+    playersCount,
+    gameweekPointsCount,
+    fixtureEventsCount,
+    teamFormCount,
+    playerMatchStatsCount,
+    playerInjuriesCount,
+    playerSuspensionsCount,
+    rowsWithXg,
+    rowsWithXa,
+  ];
 }
 
 class CronJobStatus extends Equatable {
@@ -161,15 +161,15 @@ class CronJobStatus extends Equatable {
 
   @override
   List<Object?> get props => [
-        jobId,
-        jobName,
-        schedule,
-        isActive,
-        lastRunStart,
-        lastRunEnd,
-        lastRunStatus,
-        lastRunMessage,
-      ];
+    jobId,
+    jobName,
+    schedule,
+    isActive,
+    lastRunStart,
+    lastRunEnd,
+    lastRunStatus,
+    lastRunMessage,
+  ];
 }
 
 class OpsDashboardStatus extends Equatable {
@@ -189,10 +189,10 @@ class OpsDashboardStatus extends Equatable {
 
   @override
   List<Object?> get props => [
-        cronJobs,
-        activeAlerts,
-        latestSnapshot,
-        snapshotAgeMinutes,
-        isHealthy,
-      ];
+    cronJobs,
+    activeAlerts,
+    latestSnapshot,
+    snapshotAgeMinutes,
+    isHealthy,
+  ];
 }

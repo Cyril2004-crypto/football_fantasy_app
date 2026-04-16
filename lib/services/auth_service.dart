@@ -4,7 +4,8 @@ import '../models/user.dart';
 import 'supabase_service.dart';
 
 class AuthService {
-  final firebase_auth.FirebaseAuth _firebaseAuth = firebase_auth.FirebaseAuth.instance;
+  final firebase_auth.FirebaseAuth _firebaseAuth =
+      firebase_auth.FirebaseAuth.instance;
   static const String _googleWebClientId = String.fromEnvironment(
     'GOOGLE_WEB_CLIENT_ID',
     defaultValue:
@@ -21,7 +22,7 @@ class AuthService {
   User? get currentUser {
     final firebaseUser = _firebaseAuth.currentUser;
     if (firebaseUser == null) return null;
-    
+
     return User(
       id: firebaseUser.uid,
       email: firebaseUser.email ?? '',
@@ -61,7 +62,7 @@ class AuthService {
         firebaseIdToken: (await credential.user!.getIdToken()) ?? '',
         displayName: credential.user!.displayName,
       );
-      
+
       final firebaseUser = credential.user!;
       return User(
         id: firebaseUser.uid,
@@ -77,13 +78,17 @@ class AuthService {
   }
 
   // Sign up with email and password
-  Future<User> signUpWithEmailPassword(String email, String password, String displayName) async {
+  Future<User> signUpWithEmailPassword(
+    String email,
+    String password,
+    String displayName,
+  ) async {
     try {
       final credential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      
+
       await credential.user?.updateDisplayName(displayName);
       await _supabaseService.syncFirebaseUser(
         firebaseUid: credential.user!.uid,
@@ -91,7 +96,7 @@ class AuthService {
         firebaseIdToken: (await credential.user!.getIdToken()) ?? '',
         displayName: displayName,
       );
-      
+
       final firebaseUser = credential.user!;
       return User(
         id: firebaseUser.uid,
@@ -114,13 +119,16 @@ class AuthService {
         throw Exception('Google sign in was cancelled');
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final credential = firebase_auth.GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final userCredential = await _firebaseAuth.signInWithCredential(credential);
+      final userCredential = await _firebaseAuth.signInWithCredential(
+        credential,
+      );
       final firebaseUser = userCredential.user!;
 
       await _supabaseService.syncFirebaseUser(
@@ -129,7 +137,7 @@ class AuthService {
         firebaseIdToken: (await firebaseUser.getIdToken()) ?? '',
         displayName: firebaseUser.displayName,
       );
-      
+
       return User(
         id: firebaseUser.uid,
         email: firebaseUser.email ?? '',
@@ -145,10 +153,7 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
-    await Future.wait([
-      _firebaseAuth.signOut(),
-      _googleSignIn.signOut(),
-    ]);
+    await Future.wait([_firebaseAuth.signOut(), _googleSignIn.signOut()]);
   }
 
   // Reset password

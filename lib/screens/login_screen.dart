@@ -23,7 +23,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   Future<void> _showForgotPasswordDialog() async {
-    final emailController = TextEditingController(text: _emailController.text.trim());
+    final emailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
     final dialogFormKey = GlobalKey<FormState>();
 
     await showDialog<void>(
@@ -53,12 +55,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (!dialogFormKey.currentState!.validate()) return;
 
                 try {
-                  await context.read<AuthProvider>().resetPassword(emailController.text.trim());
+                  await context.read<AuthProvider>().resetPassword(
+                    emailController.text.trim(),
+                  );
                   if (!mounted || !dialogContext.mounted) return;
                   Navigator.of(dialogContext).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Password reset link sent. Please check your email.'),
+                      content: Text(
+                        'Password reset link sent. Please check your email.',
+                      ),
                     ),
                   );
                 } catch (e) {
@@ -149,9 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppColors.primaryGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -168,9 +172,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     AppStrings.appName,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: AppColors.textLight,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      color: AppColors.textLight,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 48),
                   Card(
@@ -202,7 +206,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
-                                onPressed: _isLoading ? null : _showForgotPasswordDialog,
+                                onPressed: _isLoading
+                                    ? null
+                                    : _showForgotPasswordDialog,
                                 child: const Text(AppStrings.forgotPassword),
                               ),
                             ),
@@ -226,7 +232,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 16),
                             CustomButton(
                               text: AppStrings.signInWithGoogle,
-                              onPressed: _isLoading ? null : _handleGoogleSignIn,
+                              onPressed: _isLoading
+                                  ? null
+                                  : _handleGoogleSignIn,
                               backgroundColor: Colors.white,
                               textColor: AppColors.textPrimary,
                               icon: Icons.g_mobiledata,
