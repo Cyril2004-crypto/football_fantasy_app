@@ -1,0 +1,11 @@
+$kind: http-request
+name: Get Competition Matches by Matchday
+method: GET
+url: 'https://api.football-data.org/v4/competitions/{{competitionId}}/matches'
+order: 2000
+headers:
+  - key: X-Auth-Token
+    value: '{{footballDataApiToken}}'
+queryParams:
+  - key: matchday
+    value: '{{matchday}}'

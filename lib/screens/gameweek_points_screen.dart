@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/app_colors.dart';
 import '../config/app_config.dart';
@@ -124,7 +124,7 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DropdownButtonFormField<int>(
-                      value: _selectedGameweek,
+                      initialValue: _selectedGameweek,
                       decoration: const InputDecoration(
                         labelText: 'Select Gameweek',
                         border: OutlineInputBorder(),
@@ -144,7 +144,7 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '${widget.team.name} • GW $_selectedGameweek Points: $teamGameweekPoints',
+                      '${widget.team.name} â€¢ GW $_selectedGameweek Points: $teamGameweekPoints',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -162,13 +162,15 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
               Expanded(
                 child: ListView.separated(
                   itemCount: players.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final player = players[index];
                     final points = pointsByPlayerId[player.id] ?? 0;
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: AppColors.primary.withOpacity(0.12),
+                        backgroundColor: AppColors.primary.withValues(
+                          alpha: 0.12,
+                        ),
                         child: Text(
                           _positionShort(player.position),
                           style: const TextStyle(

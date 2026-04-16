@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'auth_service.dart';
 
 class ApiService {
-  final AuthService _authService;
+  final AuthService? _authService;
 
-  ApiService(this._authService);
+  ApiService([this._authService]);
 
   // Make unauthenticated GET request for public third-party APIs.
   Future<Map<String, dynamic>> getPublic(
@@ -30,7 +30,7 @@ class ApiService {
   // Make authenticated GET request
   Future<Map<String, dynamic>> get(String endpoint) async {
     try {
-      final token = await _authService.getIdToken();
+      final token = _authService == null ? null : await _authService.getIdToken();
       final response = await http.get(
         Uri.parse(endpoint),
         headers: {
@@ -48,7 +48,7 @@ class ApiService {
   // Make authenticated POST request
   Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> body) async {
     try {
-      final token = await _authService.getIdToken();
+      final token = _authService == null ? null : await _authService.getIdToken();
       final response = await http.post(
         Uri.parse(endpoint),
         headers: {
@@ -67,7 +67,7 @@ class ApiService {
   // Make authenticated PUT request
   Future<Map<String, dynamic>> put(String endpoint, Map<String, dynamic> body) async {
     try {
-      final token = await _authService.getIdToken();
+      final token = _authService == null ? null : await _authService.getIdToken();
       final response = await http.put(
         Uri.parse(endpoint),
         headers: {
@@ -86,7 +86,7 @@ class ApiService {
   // Make authenticated DELETE request
   Future<Map<String, dynamic>> delete(String endpoint) async {
     try {
-      final token = await _authService.getIdToken();
+      final token = _authService == null ? null : await _authService.getIdToken();
       final response = await http.delete(
         Uri.parse(endpoint),
         headers: {

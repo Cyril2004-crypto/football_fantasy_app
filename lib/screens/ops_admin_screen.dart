@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/ops_dashboard.dart';
@@ -6,7 +6,7 @@ import '../providers/ops_dashboard_provider.dart';
 import '../constants/app_colors.dart';
 
 class OpsAdminScreen extends StatefulWidget {
-  const OpsAdminScreen({Key? key}) : super(key: key);
+  const OpsAdminScreen({super.key});
 
   @override
   State<OpsAdminScreen> createState() => _OpsAdminScreenState();
@@ -17,6 +17,7 @@ class _OpsAdminScreenState extends State<OpsAdminScreen> {
   void initState() {
     super.initState();
     Future.microtask(() {
+      if (!mounted) return;
       context.read<OpsDashboardProvider>().loadDashboard();
     });
   }
@@ -40,22 +41,16 @@ class _OpsAdminScreenState extends State<OpsAdminScreen> {
       body: Consumer<OpsDashboardProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (provider.error != null) {
-            return Center(
-              child: Text('Error: ${provider.error}'),
-            );
+            return Center(child: Text('Error: ${provider.error}'));
           }
 
           final status = provider.status;
           if (status == null) {
-            return const Center(
-              child: Text('No data available'),
-            );
+            return const Center(child: Text('No data available'));
           }
 
           return SingleChildScrollView(
@@ -89,8 +84,8 @@ class _OpsAdminScreenState extends State<OpsAdminScreen> {
 
   Widget _buildHealthStatusCard(OpsDashboardStatus status) {
     final bgColor = status.isHealthy
-        ? Colors.green.withOpacity(0.1)
-        : Colors.red.withOpacity(0.1);
+        ? Colors.green.withValues(alpha: 0.1)
+        : Colors.red.withValues(alpha: 0.1);
     final statusColor = status.isHealthy ? Colors.green : Colors.red;
     final statusText = status.isHealthy ? 'Healthy' : 'Unhealthy';
 
@@ -166,13 +161,7 @@ class _OpsAdminScreenState extends State<OpsAdminScreen> {
             color: AppColors.primary,
           ),
         ),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-          ),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
   }
@@ -186,10 +175,7 @@ class _OpsAdminScreenState extends State<OpsAdminScreen> {
           children: [
             const Text(
               'Latest Snapshot',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Text(
@@ -231,10 +217,7 @@ class _OpsAdminScreenState extends State<OpsAdminScreen> {
             color: AppColors.primary,
           ),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
     );
   }
@@ -248,10 +231,7 @@ class _OpsAdminScreenState extends State<OpsAdminScreen> {
           children: [
             const Text(
               'Cron Jobs',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             if (jobs.isEmpty)
@@ -260,16 +240,16 @@ class _OpsAdminScreenState extends State<OpsAdminScreen> {
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               )
             else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: jobs.length,
-              separatorBuilder: (_, __) => const Divider(),
-              itemBuilder: (context, index) {
-                final job = jobs[index];
-                return _buildCronJobTile(job);
-              },
-            ),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: jobs.length,
+                separatorBuilder: (_, _) => const Divider(),
+                itemBuilder: (context, index) {
+                  final job = jobs[index];
+                  return _buildCronJobTile(job);
+                },
+              ),
           ],
         ),
       ),
@@ -310,10 +290,7 @@ class _OpsAdminScreenState extends State<OpsAdminScreen> {
         if (job.lastRunStart != null)
           Text(
             'Last run: ${DateFormat('HH:mm:ss').format(job.lastRunStart!)} - ${job.lastRunStatus ?? "N/A"}',
-            style: TextStyle(
-              fontSize: 11,
-              color: lastRunColor,
-            ),
+            style: TextStyle(fontSize: 11, color: lastRunColor),
           ),
       ],
     );
@@ -321,7 +298,7 @@ class _OpsAdminScreenState extends State<OpsAdminScreen> {
 
   Widget _buildAlertsCard(List<IngestionAlert> alerts) {
     return Card(
-      color: Colors.red.withOpacity(0.05),
+      color: Colors.red.withValues(alpha: 0.05),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -345,7 +322,7 @@ class _OpsAdminScreenState extends State<OpsAdminScreen> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: alerts.length,
-              separatorBuilder: (_, __) => const Divider(height: 12),
+              separatorBuilder: (_, _) => const Divider(height: 12),
               itemBuilder: (context, index) {
                 final alert = alerts[index];
                 return _buildAlertTile(alert);

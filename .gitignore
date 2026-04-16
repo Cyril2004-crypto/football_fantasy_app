@@ -46,3 +46,10 @@ app.*.map.json
 
 # Local environment defines for Flutter runs
 dart_defines.local.json
+
+# Local backend runtime files
+backend/.env
+backend/node_modules/
+
+# VS Code Postman extension local state
+.postman/

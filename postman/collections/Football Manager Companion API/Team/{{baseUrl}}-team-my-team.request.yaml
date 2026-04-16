@@ -1,0 +1,10 @@
+$kind: http-request
+name: "{{baseUrl}}/team/my-team"
+url: "{{baseUrl}}/team/my-team"
+method: GET
+headers:
+  Authorization: Bearer
+    eyJhbGciOiJSUzI1NiIsImtpZCI6IjcwZmM5YzU0YjhiMjQyMWZmMTgyOTgxNTQyZmQ0NjRlOWJlYzM1NDUiLCJ0eXAiOiJKV1QifQ
+auth:
+  type: noauth
+order: 2125746075076671

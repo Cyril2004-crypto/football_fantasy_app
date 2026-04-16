@@ -1,0 +1,18 @@
+$kind: http-request
+name: Get League Standings
+method: POST
+url: '{{supabaseLeagueFunctionUrl}}'
+order: 6000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "action": "standings",
+      "userId": "{{userId}}",
+      "leagueId": "{{leagueId}}"
+    }

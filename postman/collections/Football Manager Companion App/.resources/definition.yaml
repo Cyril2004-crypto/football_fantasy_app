@@ -1,0 +1,41 @@
+$kind: collection
+name: Football Manager Companion App
+variables:
+  - key: baseUrl
+    value: 'http://localhost:3000/api'
+  - key: authToken
+    value: ''
+  - key: userId
+    value: ''
+  - key: userName
+    value: ''
+  - key: playerId
+    value: ''
+  - key: teamId
+    value: ''
+  - key: matchId
+    value: ''
+  - key: position
+    value: ''
+  - key: leagueId
+    value: ''
+  - key: leagueCode
+    value: ''
+  - key: supabaseLeagueFunctionUrl
+    value: ''
+  - key: supabaseFunctionsBaseUrl
+    value: ''
+  - key: firebaseIdToken
+    value: ''
+  - key: firebaseUid
+    value: ''
+  - key: footballDataApiToken
+    value: ''
+  - key: sportmonksApiToken
+    value: ''
+  - key: matchday
+    value: ''
+  - key: competitionId
+    value: ''
+  - key: fixtureId
+    value: ''

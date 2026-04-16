@@ -1,0 +1,24 @@
+$kind: http-request
+name: Create League
+method: POST
+url: '{{supabaseLeagueFunctionUrl}}'
+order: 2000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "action": "createLeague",
+      "userId": "{{userId}}",
+      "userName": "{{userName}}",
+      "name": "My Premier League",
+      "type": "public",
+      "teamName": "My Fantasy Team",
+      "totalPoints": 120,
+      "gameweekPoints": 45,
+      "remainingBudget": 5.5
+    }

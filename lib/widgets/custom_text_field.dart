@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 
 class CustomTextField extends StatefulWidget {
@@ -74,7 +74,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.textSecondary.withOpacity(0.3)),
+          borderSide: BorderSide(color: AppColors.textSecondary.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -90,3 +90,4 @@ class _CustomTextFieldState extends State<CustomTextField> {
     );
   }
 }
+

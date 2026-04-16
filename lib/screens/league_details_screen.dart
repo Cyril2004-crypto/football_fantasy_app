@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 import '../models/league.dart';
@@ -78,7 +78,7 @@ class _LeagueDetailsScreenState extends State<LeagueDetailsScreen> {
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                   itemCount: standings.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, index) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final standing = standings[index];
                     return Card(
@@ -180,3 +180,5 @@ class _LeagueSummaryCard extends StatelessWidget {
     );
   }
 }
+
+

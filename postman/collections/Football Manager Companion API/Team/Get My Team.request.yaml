@@ -1,0 +1,20 @@
+﻿$kind: http-request
+url: "{{baseUrl}}/teams/my-team"
+method: GET
+headers:
+  Authorization: Bearer {{authToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status is 2xx', function () {
+        pm.expect(pm.response.code).to.be.within(200, 299);
+      });
+      let json = {};
+      try { json = pm.response.json(); } catch (e) {}
+      const teamId = (json.data && json.data.id) || json.id || '';
+      if (teamId) {
+        pm.environment.set('teamId', String(teamId));
+      }
+    language: text/javascript
+order: 1000
+

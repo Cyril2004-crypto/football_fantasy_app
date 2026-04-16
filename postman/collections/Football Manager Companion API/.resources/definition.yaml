@@ -1,0 +1,9 @@
+$kind: collection
+description: Collection generated from current app endpoints. Includes backend
+  API and Supabase ops checks.
+variables:
+  baseUrl: http://localhost:3000/api
+scripts:
+  - type: http:beforeRequest
+    code: // Keep bearer token in environment variable authToken.
+    language: text/javascript

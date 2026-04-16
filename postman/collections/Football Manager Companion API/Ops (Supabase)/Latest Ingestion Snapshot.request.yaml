@@ -1,0 +1,12 @@
+$kind: http-request
+url: "{{supabaseUrl}}/rest/v1/ingestion_health_snapshots?select=*&order=snapsho\
+  t_at.desc&limit=1"
+method: GET
+headers:
+  apikey: "{{supabaseAnonKey}}"
+  Authorization: Bearer {{supabaseJwt}}
+queryParams:
+  select: "*"
+  order: snapshot_at.desc
+  limit: "1"
+order: 2000

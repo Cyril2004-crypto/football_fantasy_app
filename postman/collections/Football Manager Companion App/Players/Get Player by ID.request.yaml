@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Player by ID
+method: GET
+url: '{{baseUrl}}/players/{{playerId}}'
+order: 2000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'

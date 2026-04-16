@@ -53,18 +53,14 @@ class _CreateLeagueScreenState extends State<CreateLeagueScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$visibilityLabel league created'),
-        ),
+        SnackBar(content: Text('$visibilityLabel league created')),
       );
       Navigator.of(context).pop(true);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('League created: $name'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('League created: $name')));
       Navigator.of(context).pop(true);
     } finally {
       if (mounted) {
@@ -101,24 +97,28 @@ class _CreateLeagueScreenState extends State<CreateLeagueScreen> {
                 },
               ),
               const SizedBox(height: 20),
-              Text('Choose league visibility', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              RadioListTile<CreateLeagueVisibility>(
-                value: CreateLeagueVisibility.public,
-                groupValue: _selectedVisibility,
-                title: const Text('Public League'),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => _selectedVisibility = value);
-                },
+              Text(
+                'Choose league visibility',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              RadioListTile<CreateLeagueVisibility>(
-                value: CreateLeagueVisibility.private,
-                groupValue: _selectedVisibility,
-                title: const Text('Private League'),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => _selectedVisibility = value);
+              const SizedBox(height: 8),
+              SegmentedButton<CreateLeagueVisibility>(
+                segments: const [
+                  ButtonSegment<CreateLeagueVisibility>(
+                    value: CreateLeagueVisibility.public,
+                    label: Text('Public League'),
+                    icon: Icon(Icons.public),
+                  ),
+                  ButtonSegment<CreateLeagueVisibility>(
+                    value: CreateLeagueVisibility.private,
+                    label: Text('Private League'),
+                    icon: Icon(Icons.lock_outline),
+                  ),
+                ],
+                selected: <CreateLeagueVisibility>{_selectedVisibility},
+                onSelectionChanged: (selection) {
+                  if (selection.isEmpty) return;
+                  setState(() => _selectedVisibility = selection.first);
                 },
               ),
               const Spacer(),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/team.dart';
 import '../models/team_analytics.dart';
@@ -8,10 +8,7 @@ import '../constants/app_colors.dart';
 class TeamAnalyticsScreen extends StatefulWidget {
   final Team team;
 
-  const TeamAnalyticsScreen({
-    Key? key,
-    required this.team,
-  }) : super(key: key);
+  const TeamAnalyticsScreen({super.key, required this.team});
 
   @override
   State<TeamAnalyticsScreen> createState() => _TeamAnalyticsScreenState();
@@ -22,6 +19,7 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
   void initState() {
     super.initState();
     Future.microtask(() {
+      if (!mounted) return;
       context.read<TeamAnalyticsProvider>().analyzeTeam(
         teamId: widget.team.id,
         teamName: widget.team.name,
@@ -53,22 +51,16 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
       body: Consumer<TeamAnalyticsProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (provider.error != null) {
-            return Center(
-              child: Text('Error: ${provider.error}'),
-            );
+            return Center(child: Text('Error: ${provider.error}'));
           }
 
           final analytics = provider.analytics;
           if (analytics == null) {
-            return const Center(
-              child: Text('No analytics available'),
-            );
+            return const Center(child: Text('No analytics available'));
           }
 
           return SingleChildScrollView(
@@ -118,10 +110,7 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
           children: [
             const Text(
               'Team Form Score',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
             Center(
@@ -137,13 +126,13 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
                           value: analytics.teamFormScore / 100,
                           strokeWidth: 8,
                           valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
-                          backgroundColor: Colors.grey.withOpacity(0.2),
+                          backgroundColor: Colors.grey.withValues(alpha: 0.2),
                         ),
                         Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              '${analytics.teamFormScore.toStringAsFixed(1)}',
+                              analytics.teamFormScore.toStringAsFixed(1),
                               style: TextStyle(
                                 fontSize: 40,
                                 fontWeight: FontWeight.bold,
@@ -152,7 +141,10 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
                             ),
                             const Text(
                               '/ 100',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
                           ],
                         ),
@@ -163,8 +155,14 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildQuickStat('High Risk', '${analytics.injuryRisks.where((r) => r.riskLevel == "high").length}'),
-                      _buildQuickStat('Transfers', '${analytics.highPriorityTransfers}'),
+                      _buildQuickStat(
+                        'High Risk',
+                        '${analytics.injuryRisks.where((r) => r.riskLevel == "high").length}',
+                      ),
+                      _buildQuickStat(
+                        'Transfers',
+                        '${analytics.highPriorityTransfers}',
+                      ),
                     ],
                   ),
                 ],
@@ -187,10 +185,7 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
             color: AppColors.primary,
           ),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
   }
@@ -204,17 +199,14 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
           children: [
             const Text(
               'Form Trends (Last 5 Gameweeks)',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: trends.take(5).length,
-              separatorBuilder: (_, __) => const Divider(),
+              separatorBuilder: (_, _) => const Divider(),
               itemBuilder: (context, index) {
                 final trend = trends[index];
                 return _buildFormTrendTile(trend);
@@ -261,11 +253,7 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
               '${trend.windowAverage.toStringAsFixed(1)} avg',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            Icon(
-              trendIcon,
-              color: trendColor,
-              size: 16,
-            ),
+            Icon(trendIcon, color: trendColor, size: 16),
           ],
         ),
       ],
@@ -274,7 +262,7 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
 
   Widget _buildInjuryRisksCard(List<InjuryRisk> risks) {
     return Card(
-      color: Colors.orange.withOpacity(0.05),
+      color: Colors.orange.withValues(alpha: 0.05),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -298,7 +286,7 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: risks.length,
-              separatorBuilder: (_, __) => const Divider(height: 12),
+              separatorBuilder: (_, _) => const Divider(height: 12),
               itemBuilder: (context, index) {
                 final risk = risks[index];
                 return _buildInjuryRiskTile(risk);
@@ -340,7 +328,7 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: riskColor.withOpacity(0.2),
+                color: riskColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -367,7 +355,7 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
     List<TransferRecommendation> recommendations,
   ) {
     return Card(
-      color: Colors.blue.withOpacity(0.05),
+      color: Colors.blue.withValues(alpha: 0.05),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -391,7 +379,7 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: recommendations.length,
-              separatorBuilder: (_, __) => const Divider(height: 12),
+              separatorBuilder: (_, _) => const Divider(height: 12),
               itemBuilder: (context, index) {
                 final rec = recommendations[index];
                 return _buildTransferRecTile(rec);
@@ -433,7 +421,7 @@ class _TeamAnalyticsScreenState extends State<TeamAnalyticsScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: actionColor.withOpacity(0.2),
+                color: actionColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(

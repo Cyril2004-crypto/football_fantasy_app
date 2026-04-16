@@ -13,7 +13,7 @@ class NotificationService {
 
   Future<void> initialize() async {
     try {
-      print('📲 NotificationService: Requesting FCM permissions...');
+      debugPrint('📲 NotificationService: Requesting FCM permissions...');
       // Ask user permission (required on iOS/macOS/web and Android 13+).
       final settings = await _messaging.requestPermission(
         alert: true,
@@ -22,7 +22,7 @@ class NotificationService {
         provisional: false,
       );
 
-      print('✅ FCM permission status: ${settings.authorizationStatus}');
+      debugPrint('✅ FCM permission status: ${settings.authorizationStatus}');
 
         // setAutoInitEnabled is only supported on mobile platforms, not web
         if (!kIsWeb) {
@@ -33,23 +33,23 @@ class NotificationService {
       final vapidKey = kIsWeb && hasWebVapidKey
           ? AppConfig.firebaseWebVapidKey
           : null;
-      print('🔑 Using VAPID key: ${vapidKey != null ? "YES (${vapidKey.length} chars)" : "NO"}');
+      debugPrint('🔑 Using VAPID key: ${vapidKey != null ? "YES (${vapidKey.length} chars)" : "NO"}');
 
       if (kIsWeb && !hasWebVapidKey) {
-        print('⚠️ Web VAPID key is empty. Add FIREBASE_WEB_VAPID_KEY in dart_defines.local.json.');
+        debugPrint('⚠️ Web VAPID key is empty. Add FIREBASE_WEB_VAPID_KEY in dart_defines.local.json.');
         return;
       }
 
       try {
         final token = await _messaging.getToken(vapidKey: vapidKey);
-        print('🎫 FCM TOKEN: $token');
-        print('📋 ⬆️ Copy this token to Firebase Console to send test notifications');
+        debugPrint('🎫 FCM TOKEN: $token');
+        debugPrint('📋 ⬆️ Copy this token to Firebase Console to send test notifications');
       } on MissingPluginException catch (e) {
-        print('❌ FCM plugin not registered on this run: $e');
-        print('ℹ️ Close all flutter run sessions, close Chrome, then run flutter clean; flutter pub get; flutter run -d chrome --dart-define-from-file=dart_defines.local.json');
+        debugPrint('❌ FCM plugin not registered on this run: $e');
+        debugPrint('ℹ️ Close all flutter run sessions, close Chrome, then run flutter clean; flutter pub get; flutter run -d chrome --dart-define-from-file=dart_defines.local.json');
       }
     } catch (e) {
-      print('❌ FCM initialization error: $e');
+      debugPrint('❌ FCM initialization error: $e');
     }
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {

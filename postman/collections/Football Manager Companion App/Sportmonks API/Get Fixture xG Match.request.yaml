@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Fixture xG Match
+method: GET
+url: 'https://api.sportmonks.com/v3/football/fixtures/{{fixtureId}}/xg'
+order: 4000
+queryParams:
+  - key: include
+    value: 'participants;lineups.details.type'
+  - key: api_token
+    value: '{{sportmonksApiToken}}'

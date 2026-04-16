@@ -37,8 +37,8 @@ class LeagueService {
     Team? team,
   }) async {
     final data = await _invoke('joinLeague', {
-      if (leagueId != null) 'leagueId': leagueId,
-      if (leagueCode != null) 'leagueCode': leagueCode,
+      'leagueId': leagueId,
+      'leagueCode': leagueCode,
       ..._teamPayload(team),
     });
 
@@ -133,7 +133,10 @@ class LeagueService {
   List<LeagueStanding> _asStandingList(dynamic value) {
     if (value is! List) return [];
     return value
-        .map((json) => LeagueStanding.fromJson(Map<String, dynamic>.from(json as Map)))
+        .map(
+          (json) =>
+              LeagueStanding.fromJson(Map<String, dynamic>.from(json as Map)),
+        )
         .toList();
   }
 }

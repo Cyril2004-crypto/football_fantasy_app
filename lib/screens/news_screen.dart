@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 import '../services/api_service.dart';
@@ -238,7 +238,7 @@ class _NewsScreenState extends State<NewsScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, index) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final item = items[index];
                 return Card(
@@ -292,3 +292,5 @@ class _NewsItem {
     required this.source,
   });
 }
+
+

@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Completed Matches
+method: GET
+url: '{{baseUrl}}/matches/completed'
+order: 5000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'

@@ -24,7 +24,7 @@ class AuthProvider with ChangeNotifier {
     _authService.authStateChanges.listen((user) {
       _user = user;
       _status = user != null ? AuthStatus.authenticated : AuthStatus.unauthenticated;
-      print('🔐 Auth state changed: ${user != null ? 'Authenticated (${user.email})' : 'Unauthenticated'}');
+      debugPrint('🔐 Auth state changed: ${user != null ? 'Authenticated (${user.email})' : 'Unauthenticated'}');
       notifyListeners();
     });
   }

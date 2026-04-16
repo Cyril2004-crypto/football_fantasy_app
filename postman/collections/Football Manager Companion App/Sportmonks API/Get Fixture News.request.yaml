@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Fixture News
+method: GET
+url: 'https://api.sportmonks.com/v3/football/fixtures/{{fixtureId}}'
+order: 3000
+queryParams:
+  - key: include
+    value: 'prematchNews.lines;postmatchNews.lines;participants;league;venue;state;scores;events.type'
+  - key: api_token
+    value: '{{sportmonksApiToken}}'

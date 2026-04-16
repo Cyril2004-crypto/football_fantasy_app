@@ -1,0 +1,284 @@
+{
+  "info": {
+    "_postman_id": "f8f33ad2-4b90-42de-a82e-bacafeea5fa6",
+    "name": "Football Manager Companion API",
+    "description": "Collection generated from current app endpoints. Includes backend API and Supabase ops checks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"tester@example.com\",\n  \"password\": \"Passw0rd!\",\n  \"displayName\": \"Postman Tester\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 2xx', function () {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"tester@example.com\",\n  \"password\": \"Passw0rd!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 2xx', function () {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (e) {}",
+                  "const token = json.token || json.idToken || json.accessToken || (json.data && (json.data.token || json.data.idToken || json.data.accessToken));",
+                  "if (token) {",
+                  "  pm.environment.set('authToken', token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Team",
+      "item": [
+        {
+          "name": "Get My Team",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/teams/my-team",
+              "host": ["{{baseUrl}}"],
+              "path": ["teams", "my-team"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 2xx', function () {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (e) {}",
+                  "const teamId = (json.data && json.data.id) || json.id || '';",
+                  "if (teamId) {",
+                  "  pm.environment.set('teamId', String(teamId));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Team",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman XI\",\n  \"playerIds\": [\"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", \"9\", \"10\", \"11\", \"12\", \"13\", \"14\", \"15\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teams/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["teams", "create"]
+            }
+          }
+        },
+        {
+          "name": "Update Team",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teamId\": \"{{teamId}}\",\n  \"playerIds\": [\"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", \"9\", \"10\", \"11\", \"12\", \"13\", \"14\", \"15\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teams/update",
+              "host": ["{{baseUrl}}"],
+              "path": ["teams", "update"]
+            }
+          }
+        },
+        {
+          "name": "Get Team By Id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/teams/{{teamId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["teams", "{{teamId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ops (Supabase)",
+      "item": [
+        {
+          "name": "Cron Job Statuses RPC",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{supabaseAnonKey}}" },
+              { "key": "Authorization", "value": "Bearer {{supabaseJwt}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{supabaseUrl}}/rest/v1/rpc/get_ops_cron_job_statuses",
+              "host": ["{{supabaseUrl}}"],
+              "path": ["rest", "v1", "rpc", "get_ops_cron_job_statuses"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 2xx', function () {",
+                  "  pm.expect(pm.response.code).to.be.within(200, 299);",
+                  "});",
+                  "pm.test('Response is array', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(Array.isArray(json)).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Latest Ingestion Snapshot",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{supabaseAnonKey}}" },
+              { "key": "Authorization", "value": "Bearer {{supabaseJwt}}" }
+            ],
+            "url": {
+              "raw": "{{supabaseUrl}}/rest/v1/ingestion_health_snapshots?select=*&order=snapshot_at.desc&limit=1",
+              "host": ["{{supabaseUrl}}"],
+              "path": ["rest", "v1", "ingestion_health_snapshots"],
+              "query": [
+                { "key": "select", "value": "*" },
+                { "key": "order", "value": "snapshot_at.desc" },
+                { "key": "limit", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Active Ingestion Alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{supabaseAnonKey}}" },
+              { "key": "Authorization", "value": "Bearer {{supabaseJwt}}" }
+            ],
+            "url": {
+              "raw": "{{supabaseUrl}}/rest/v1/ingestion_alert_events?select=*&is_active=eq.true&order=last_seen_at.desc&limit=20",
+              "host": ["{{supabaseUrl}}"],
+              "path": ["rest", "v1", "ingestion_alert_events"],
+              "query": [
+                { "key": "select", "value": "*" },
+                { "key": "is_active", "value": "eq.true" },
+                { "key": "order", "value": "last_seen_at.desc" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Keep bearer token in environment variable authToken."
+        ]
+      }
+    }
+  ]
+}

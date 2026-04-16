@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -12,6 +14,7 @@ import 'services/api_service.dart';
 import 'services/player_service.dart';
 import 'services/team_service.dart';
 import 'services/notification_service.dart';
+import 'services/error_reporting_service.dart';
 import 'services/ops_dashboard_service.dart';
 import 'services/team_analytics_service.dart';
 import 'providers/auth_provider.dart';
@@ -24,19 +27,70 @@ import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final errorReporting = ErrorReportingService.instance;
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('❌ Flutter framework error: ${details.exceptionAsString()}');
+    errorReporting.recordFlutterError(details);
+  };
+
+  WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+    debugPrint('❌ Unhandled async/platform error: $error');
+    errorReporting.recordError(
+      error,
+      stack,
+      reason: 'platformDispatcher.onError',
+    );
+    return true;
+  };
+
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: Colors.white,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.error_outline, color: Colors.red, size: 48),
+              SizedBox(height: 12),
+              Text(
+                'A UI error occurred. Please restart the app.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
+
+  await runZonedGuarded<Future<void>>(
+    () async {
+      await _bootstrapAndRun();
+    },
+    (error, stack) {
+      debugPrint('❌ Uncaught zone error: $error');
+      errorReporting.recordError(error, stack, reason: 'runZonedGuarded');
+    },
+  );
+}
+
+Future<void> _bootstrapAndRun() async {
   var supabaseReady = false;
-  
+
   // Initialize Firebase
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await ErrorReportingService.instance.initialize();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await NotificationService.instance.initialize();
-    print('✅ Firebase initialized successfully!');
-    print('📱 Firebase Apps: ${Firebase.apps.length}');
+    debugPrint('✅ Firebase initialized successfully!');
+    debugPrint('📱 Firebase Apps: ${Firebase.apps.length}');
   } catch (e) {
-    print('❌ Firebase initialization error: $e');
+    debugPrint('❌ Firebase initialization error: $e');
   }
 
   if (AppConfig.supabaseEnabled) {
@@ -46,14 +100,14 @@ void main() async {
         anonKey: AppConfig.supabaseAnonKey,
       );
       supabaseReady = true;
-      print('✅ Supabase initialized successfully!');
+      debugPrint('✅ Supabase initialized successfully!');
     } catch (e) {
-      print('❌ Supabase initialization error: $e');
+      debugPrint('❌ Supabase initialization error: $e');
     }
   } else {
-    print('ℹ️ Supabase skipped (SUPABASE_URL/SUPABASE_ANON_KEY missing).');
+    debugPrint('ℹ️ Supabase skipped (SUPABASE_URL/SUPABASE_ANON_KEY missing).');
   }
-  
+
   runApp(MyApp(supabaseReady: supabaseReady));
 }
 

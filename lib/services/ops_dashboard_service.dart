@@ -1,5 +1,42 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/ops_dashboard.dart';
+
+CronJobStatus mapCronJobStatus(Map<String, dynamic> row) {
+  return CronJobStatus(
+    jobId: (row['jobid'] as num?)?.toInt() ?? 0,
+    jobName: row['jobname'] as String? ?? 'unknown-job',
+    schedule: row['schedule'] as String? ?? 'n/a',
+    isActive: row['active'] as bool? ?? false,
+    lastRunStart: row['last_run_start'] != null
+        ? DateTime.parse(row['last_run_start'] as String)
+        : null,
+    lastRunEnd: row['last_run_end'] != null
+        ? DateTime.parse(row['last_run_end'] as String)
+        : null,
+    lastRunStatus: row['last_run_status'] as String?,
+    lastRunMessage: row['last_run_message'] as String?,
+  );
+}
+
+int calculateSnapshotAgeMinutes(HealthSnapshot? snapshot, {DateTime? now}) {
+  if (snapshot == null) return 9999;
+  final reference = now ?? DateTime.now();
+  return reference.difference(snapshot.snapshotAt).inMinutes;
+}
+
+bool isDashboardHealthy({
+  required List<CronJobStatus> cronJobs,
+  required List<IngestionAlert> activeAlerts,
+  required HealthSnapshot? latestSnapshot,
+}) {
+  final hasSnapshot = latestSnapshot != null;
+  final hasCronVisibility = cronJobs.isNotEmpty;
+  final allVisibleCronActive = cronJobs.every((j) => j.isActive);
+  return activeAlerts.isEmpty &&
+      (!hasCronVisibility || allVisibleCronActive) &&
+      hasSnapshot;
+}
 
 class OpsDashboardService {
   final SupabaseClient _supabase;
@@ -11,31 +48,14 @@ class OpsDashboardService {
       final response = await _supabase.rpc('get_ops_cron_job_statuses');
 
       return (response as List)
-          .map((row) => _mapCronJobStatus(row as Map<String, dynamic>))
+          .map((row) => mapCronJobStatus(row as Map<String, dynamic>))
           .toList();
     } catch (e) {
       // Cron metadata is commonly restricted from anon clients in Supabase.
       // Do not fail the whole dashboard if cron tables are inaccessible.
-      print('Cron jobs unavailable (continuing without cron section): $e');
+      debugPrint('Cron jobs unavailable (continuing without cron section): $e');
       return const <CronJobStatus>[];
     }
-  }
-
-  CronJobStatus _mapCronJobStatus(Map<String, dynamic> row) {
-    return CronJobStatus(
-      jobId: (row['jobid'] as num?)?.toInt() ?? 0,
-      jobName: row['jobname'] as String? ?? 'unknown-job',
-      schedule: row['schedule'] as String? ?? 'n/a',
-      isActive: row['active'] as bool? ?? false,
-      lastRunStart: row['last_run_start'] != null
-          ? DateTime.parse(row['last_run_start'] as String)
-          : null,
-      lastRunEnd: row['last_run_end'] != null
-          ? DateTime.parse(row['last_run_end'] as String)
-          : null,
-      lastRunStatus: row['last_run_status'] as String?,
-      lastRunMessage: row['last_run_message'] as String?,
-    );
   }
 
   Future<List<IngestionAlert>> fetchActiveAlerts() async {
@@ -53,7 +73,7 @@ class OpsDashboardService {
           )
           .toList();
     } catch (e) {
-      print('Error fetching active alerts: $e');
+      debugPrint('Error fetching active alerts: $e');
       throw Exception('Failed to fetch alerts: $e');
     }
   }
@@ -84,7 +104,7 @@ class OpsDashboardService {
 
       return HealthSnapshot.fromJson(fallback.first);
     } catch (e) {
-      print('Error fetching latest snapshot: $e');
+      debugPrint('Error fetching latest snapshot: $e');
       return null;
     }
   }
@@ -95,15 +115,12 @@ class OpsDashboardService {
       final activeAlerts = await fetchActiveAlerts();
       final latestSnapshot = await fetchLatestSnapshot('sportmonks-enrichment');
 
-      final snapshotAgeMinutes = latestSnapshot != null
-          ? DateTime.now().difference(latestSnapshot.snapshotAt).inMinutes
-          : 9999;
-
-        final hasSnapshot = latestSnapshot != null;
-        final hasCronVisibility = cronJobs.isNotEmpty;
-        final allVisibleCronActive = cronJobs.every((j) => j.isActive);
-        final isHealthy =
-          activeAlerts.isEmpty && (!hasCronVisibility || allVisibleCronActive) && hasSnapshot;
+      final snapshotAgeMinutes = calculateSnapshotAgeMinutes(latestSnapshot);
+      final isHealthy = isDashboardHealthy(
+        cronJobs: cronJobs,
+        activeAlerts: activeAlerts,
+        latestSnapshot: latestSnapshot,
+      );
 
       return OpsDashboardStatus(
         cronJobs: cronJobs,
@@ -113,7 +130,7 @@ class OpsDashboardService {
         isHealthy: isHealthy,
       );
     } catch (e) {
-      print('Error fetching dashboard status: $e');
+      debugPrint('Error fetching dashboard status: $e');
       throw Exception('Failed to fetch dashboard status: $e');
     }
   }

@@ -1,0 +1,22 @@
+$kind: http-request
+name: Sync Team
+method: POST
+url: '{{supabaseLeagueFunctionUrl}}'
+order: 1000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "action": "syncTeam",
+      "userId": "{{userId}}",
+      "userName": "{{userName}}",
+      "teamName": "My Fantasy Team",
+      "totalPoints": 120,
+      "gameweekPoints": 45,
+      "remainingBudget": 5.5
+    }

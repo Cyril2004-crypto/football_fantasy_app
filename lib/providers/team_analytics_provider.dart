@@ -35,7 +35,7 @@ class TeamAnalyticsProvider with ChangeNotifier {
       _error = null;
     } catch (e) {
       _error = e.toString();
-      print('Error analyzing team: $e');
+      debugPrint('Error analyzing team: $e');
     } finally {
       _isLoading = false;
       notifyListeners();

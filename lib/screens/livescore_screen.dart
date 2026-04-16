@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 import '../services/api_service.dart';
@@ -13,8 +13,9 @@ class LiveScoreScreen extends StatefulWidget {
 }
 
 class _LiveScoreScreenState extends State<LiveScoreScreen> {
-  final SportmonksService _sportmonksService =
-      SportmonksService(ApiService(AuthService()));
+  final SportmonksService _sportmonksService = SportmonksService(
+    ApiService(AuthService()),
+  );
   late Future<List<_LiveScoreItem>> _future;
   String? _statusMessage;
 
@@ -51,7 +52,9 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
 
   _LiveScoreItem? _parseItem(Map<String, dynamic> row) {
     final participants = row['participants'];
-    final participantList = participants is List ? participants : const <dynamic>[];
+    final participantList = participants is List
+        ? participants
+        : const <dynamic>[];
 
     final homeName = participantList.isNotEmpty
         ? _readString(participantList.first, const ['name']) ?? 'Home Team'
@@ -67,10 +70,18 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
     int? awayScore;
 
     for (final entry in scoreList) {
-      final scoreMap = entry is Map<String, dynamic> ? entry : const <String, dynamic>{};
-      final desc = (_readString(scoreMap, const ['description', 'type', 'name']) ?? '')
-          .toLowerCase();
-      final value = _readInt(scoreMap, const ['score', 'goals', 'home', 'away']);
+      final scoreMap = entry is Map<String, dynamic>
+          ? entry
+          : const <String, dynamic>{};
+      final desc =
+          (_readString(scoreMap, const ['description', 'type', 'name']) ?? '')
+              .toLowerCase();
+      final value = _readInt(scoreMap, const [
+        'score',
+        'goals',
+        'home',
+        'away',
+      ]);
       if (value == null) {
         continue;
       }
@@ -81,8 +92,8 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
         awayScore = value;
       } else if (homeScore == null) {
         homeScore = value;
-      } else if (awayScore == null) {
-        awayScore = value;
+      } else {
+        awayScore ??= value;
       }
     }
 
@@ -101,7 +112,9 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
       awayScore: awayScore,
       league: _readString(leagueMap, const ['name']) ?? 'League',
       country: _readString(countryMap, const ['name']),
-      state: _readString(row, const ['state', 'status', 'fixture_status']) ?? 'LIVE',
+      state:
+          _readString(row, const ['state', 'status', 'fixture_status']) ??
+          'LIVE',
     );
   }
 
@@ -184,7 +197,11 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(24),
                 children: [
-                  const Icon(Icons.info_outline, size: 44, color: AppColors.secondary),
+                  const Icon(
+                    Icons.info_outline,
+                    size: 44,
+                    color: AppColors.secondary,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     _statusMessage ?? 'No live matches right now',
@@ -199,7 +216,7 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               itemCount: matches.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final item = matches[index];
                 return Card(
@@ -211,7 +228,10 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.accent,
                                 borderRadius: BorderRadius.circular(4),
@@ -231,16 +251,14 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
                                 item.country == null
                                     ? item.league
                                     : '${item.country} - ${item.league}',
-                                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
+                                style: Theme.of(context).textTheme.labelMedium
+                                    ?.copyWith(color: AppColors.textSecondary),
                               ),
                             ),
                             Text(
                               item.state,
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: AppColors.textSecondary),
                             ),
                           ],
                         ),
@@ -250,20 +268,23 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
                             Expanded(
                               child: Text(
                                 '${item.homeName}\n${item.awayName}',
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.bold),
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
+                                color: AppColors.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 '${item.homeScore ?? 0} - ${item.awayScore ?? 0}',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.primary,
                                     ),

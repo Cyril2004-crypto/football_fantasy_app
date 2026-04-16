@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Overall Stats
+method: GET
+url: '{{baseUrl}}/stats/overall'
+order: 2000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'

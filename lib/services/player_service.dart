@@ -190,20 +190,35 @@ class PlayerService {
 
   PlayerPosition _positionFromRaw(String? position) {
     final value = (position ?? '').toLowerCase();
-    if (value.contains('goal')) return PlayerPosition.goalkeeper;
-    if (value.contains('def')) return PlayerPosition.defender;
-    if (value.contains('mid')) return PlayerPosition.midfielder;
-    if (value.contains('forw') || value.contains('strik'))
+    if (value.contains('goal')) {
+      return PlayerPosition.goalkeeper;
+    }
+    if (value.contains('def')) {
+      return PlayerPosition.defender;
+    }
+    if (value.contains('mid')) {
+      return PlayerPosition.midfielder;
+    }
+    if (value.contains('forw') || value.contains('strik')) {
       return PlayerPosition.forward;
+    }
     return PlayerPosition.midfielder;
   }
 
   double _defaultPrice(String? position) {
     final value = (position ?? '').toLowerCase();
-    if (value.contains('goal')) return 5.0;
-    if (value.contains('def')) return 5.5;
-    if (value.contains('mid')) return 6.5;
-    if (value.contains('forw') || value.contains('strik')) return 7.5;
+    if (value.contains('goal')) {
+      return 5.0;
+    }
+    if (value.contains('def')) {
+      return 5.5;
+    }
+    if (value.contains('mid')) {
+      return 6.5;
+    }
+    if (value.contains('forw') || value.contains('strik')) {
+      return 7.5;
+    }
     return 5.0;
   }
 }

@@ -1,6 +1,9 @@
 class ApiEndpoints {
   // Base URL - Update this with your backend API URL
-  static const String baseUrl = 'http://localhost:3000/api';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:3000/api',
+  );
 
   // football-data.org
   static const String footballDataBaseUrl = 'https://api.football-data.org/v4';

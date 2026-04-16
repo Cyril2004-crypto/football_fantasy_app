@@ -1,0 +1,11 @@
+$kind: http-request
+name: Get Players by Position
+method: GET
+url: '{{baseUrl}}/players/position'
+order: 3000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'
+queryParams:
+  - key: position
+    value: '{{position}}'

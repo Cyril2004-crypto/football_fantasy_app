@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get User Profile
+method: GET
+url: '{{baseUrl}}/users/profile'
+order: 3000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'

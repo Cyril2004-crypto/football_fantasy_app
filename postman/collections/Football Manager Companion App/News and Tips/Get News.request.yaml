@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get News
+method: GET
+url: '{{baseUrl}}/news'
+order: 1000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'

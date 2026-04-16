@@ -41,26 +41,12 @@ alter table public.fantasy_teams enable row level security;
 alter table public.fantasy_leagues enable row level security;
 alter table public.fantasy_league_members enable row level security;
 
+revoke all on table public.fantasy_teams from public, anon, authenticated;
+revoke all on table public.fantasy_leagues from public, anon, authenticated;
+revoke all on table public.fantasy_league_members from public, anon, authenticated;
+
 do $$
 begin
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fantasy_teams' and policyname = 'fantasy_teams_read_all'
-  ) then
-    create policy fantasy_teams_read_all on public.fantasy_teams for select using (true);
-  end if;
-
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fantasy_leagues' and policyname = 'fantasy_leagues_read_all'
-  ) then
-    create policy fantasy_leagues_read_all on public.fantasy_leagues for select using (true);
-  end if;
-
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fantasy_league_members' and policyname = 'fantasy_league_members_read_all'
-  ) then
-    create policy fantasy_league_members_read_all on public.fantasy_league_members for select using (true);
-  end if;
+  -- Intentionally no anon/authenticated policies.
+  -- League data is accessed through trusted server-side functions only.
 end $$;

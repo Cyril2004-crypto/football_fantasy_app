@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Fixture Match Centre
+method: GET
+url: 'https://api.sportmonks.com/v3/football/fixtures/{{fixtureId}}'
+order: 2000
+queryParams:
+  - key: include
+    value: 'participants;scores;events.type;events.player;events.relatedplayer;lineups.details.type;statistics.type'
+  - key: api_token
+    value: '{{sportmonksApiToken}}'

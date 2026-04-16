@@ -22,6 +22,65 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
+  Future<void> _showForgotPasswordDialog() async {
+    final emailController = TextEditingController(text: _emailController.text.trim());
+    final dialogFormKey = GlobalKey<FormState>();
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Reset Password'),
+          content: Form(
+            key: dialogFormKey,
+            child: TextFormField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: AppStrings.email,
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
+              validator: Validators.emailValidator,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (!dialogFormKey.currentState!.validate()) return;
+
+                try {
+                  await context.read<AuthProvider>().resetPassword(emailController.text.trim());
+                  if (!mounted || !dialogContext.mounted) return;
+                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Password reset link sent. Please check your email.'),
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString()),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Send Link'),
+            ),
+          ],
+        );
+      },
+    );
+
+    emailController.dispose();
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -143,9 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
-                                onPressed: () {
-                                  // TODO: Implement forgot password
-                                },
+                                onPressed: _isLoading ? null : _showForgotPasswordDialog,
                                 child: const Text(AppStrings.forgotPassword),
                               ),
                             ),

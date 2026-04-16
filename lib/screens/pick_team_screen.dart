@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/player.dart';
 import '../providers/player_provider.dart';
@@ -29,6 +29,7 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
     super.initState();
     _teamNameController = TextEditingController();
     Future.microtask(() {
+      if (!mounted) return;
       context.read<PlayerProvider>().loadAllPlayers();
     });
   }
@@ -47,14 +48,18 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
   bool get _isTeamValid {
     if (_selectedPlayers.length != AppConfig.maxPlayersPerTeam) return false;
 
-    final gkCount =
-        _selectedPlayers.where((p) => p.position == PlayerPosition.goalkeeper).length;
-    final defCount =
-        _selectedPlayers.where((p) => p.position == PlayerPosition.defender).length;
-    final midCount =
-        _selectedPlayers.where((p) => p.position == PlayerPosition.midfielder).length;
-    final fwdCount =
-        _selectedPlayers.where((p) => p.position == PlayerPosition.forward).length;
+    final gkCount = _selectedPlayers
+        .where((p) => p.position == PlayerPosition.goalkeeper)
+        .length;
+    final defCount = _selectedPlayers
+        .where((p) => p.position == PlayerPosition.defender)
+        .length;
+    final midCount = _selectedPlayers
+        .where((p) => p.position == PlayerPosition.midfielder)
+        .length;
+    final fwdCount = _selectedPlayers
+        .where((p) => p.position == PlayerPosition.forward)
+        .length;
 
     return gkCount == AppConfig.goalkeepersRequired &&
         defCount == AppConfig.defendersRequired &&
@@ -80,7 +85,9 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(_getRejectionReason(player, positionCount, maxForPosition)),
+              content: Text(
+                _getRejectionReason(player, positionCount, maxForPosition),
+              ),
               backgroundColor: AppColors.error,
             ),
           );
@@ -160,7 +167,7 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
     if (_remainingBudget < player.price) {
       return 'Insufficient budget. Need ${CurrencyFormatter.formatPrice(player.price)}';
     }
-    return 'Maximum ${maxCount} ${player.position.toString().split('.').last}s allowed';
+    return 'Maximum $maxCount ${player.position.toString().split('.').last}s allowed';
   }
 
   Future<void> _createTeam() async {
@@ -220,9 +227,7 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(AppStrings.selectTeam),
-      ),
+      appBar: AppBar(title: const Text(AppStrings.selectTeam)),
       body: Consumer<PlayerProvider>(
         builder: (context, playerProvider, _) {
           if (playerProvider.isLoading) {
@@ -249,13 +254,13 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
                       children: [
                         Text(
                           'Squad: ${_selectedPlayers.length}/${AppConfig.maxPlayersPerTeam}',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: AppColors.textLight,
-                              ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(color: AppColors.textLight),
                         ),
                         Text(
                           'Budget: ${CurrencyFormatter.formatBudget(_remainingBudget)}',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
                                 color: _remainingBudget < 0
                                     ? AppColors.error
                                     : AppColors.secondary,
@@ -296,22 +301,26 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
                       ),
                       _PositionFilterChip(
                         label: 'GK',
-                        onTap: () => setState(() => _selectedPosition = 'goalkeeper'),
+                        onTap: () =>
+                            setState(() => _selectedPosition = 'goalkeeper'),
                         isSelected: _selectedPosition == 'goalkeeper',
                       ),
                       _PositionFilterChip(
                         label: 'DEF',
-                        onTap: () => setState(() => _selectedPosition = 'defender'),
+                        onTap: () =>
+                            setState(() => _selectedPosition = 'defender'),
                         isSelected: _selectedPosition == 'defender',
                       ),
                       _PositionFilterChip(
                         label: 'MID',
-                        onTap: () => setState(() => _selectedPosition = 'midfielder'),
+                        onTap: () =>
+                            setState(() => _selectedPosition = 'midfielder'),
                         isSelected: _selectedPosition == 'midfielder',
                       ),
                       _PositionFilterChip(
                         label: 'FWD',
-                        onTap: () => setState(() => _selectedPosition = 'forward'),
+                        onTap: () =>
+                            setState(() => _selectedPosition = 'forward'),
                         isSelected: _selectedPosition == 'forward',
                       ),
                     ],
@@ -326,23 +335,28 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
                     final player = playerProvider.players[index];
 
                     if (_selectedPosition.isNotEmpty &&
-                        !player.position.toString().contains(_selectedPosition)) {
+                        !player.position.toString().contains(
+                          _selectedPosition,
+                        )) {
                       return const SizedBox.shrink();
                     }
 
-                    final isSelected =
-                        _selectedPlayers.any((p) => p.id == player.id);
+                    final isSelected = _selectedPlayers.any(
+                      (p) => p.id == player.id,
+                    );
 
                     return _PlayerCard(
                       player: player,
                       isSelected: isSelected,
-                      isDisabled: !isSelected &&
+                      isDisabled:
+                          !isSelected &&
                           (_remainingBudget < player.price ||
                               _selectedPlayers.length >=
                                   AppConfig.maxPlayersPerTeam ||
                               _selectedPlayers
-                                      .where((p) =>
-                                          p.position == player.position)
+                                      .where(
+                                        (p) => p.position == player.position,
+                                      )
                                       .length >=
                                   _getMaxPlayersForPosition(player.position)),
                       onTap: () => _togglePlayerSelection(player),
@@ -366,7 +380,8 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () => setState(() => _selectedPlayers.clear()),
+                            onPressed: () =>
+                                setState(() => _selectedPlayers.clear()),
                             child: const Text(AppStrings.clearTeam),
                           ),
                         ),
@@ -375,7 +390,9 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
                     const SizedBox(height: 12),
                     CustomButton(
                       text: AppStrings.saveTeam,
-                      onPressed: _isTeamValid && !_isLoading ? _createTeam : null,
+                      onPressed: _isTeamValid && !_isLoading
+                          ? _createTeam
+                          : null,
                       isLoading: _isLoading,
                     ),
                   ],
@@ -399,12 +416,15 @@ class _TeamPositionIndicator extends StatelessWidget {
     final gkCount = selectedPlayers
         .where((p) => p.position == PlayerPosition.goalkeeper)
         .length;
-    final defCount =
-        selectedPlayers.where((p) => p.position == PlayerPosition.defender).length;
-    final midCount =
-        selectedPlayers.where((p) => p.position == PlayerPosition.midfielder).length;
-    final fwdCount =
-        selectedPlayers.where((p) => p.position == PlayerPosition.forward).length;
+    final defCount = selectedPlayers
+        .where((p) => p.position == PlayerPosition.defender)
+        .length;
+    final midCount = selectedPlayers
+        .where((p) => p.position == PlayerPosition.midfielder)
+        .length;
+    final fwdCount = selectedPlayers
+        .where((p) => p.position == PlayerPosition.forward)
+        .length;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -431,15 +451,17 @@ class _PositionCount extends StatelessWidget {
       children: [
         Text(
           position,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.textLight,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppColors.textLight),
         ),
         Text(
           '$current/$required',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: current == required ? AppColors.secondary : AppColors.textLight,
-              ),
+            color: current == required
+                ? AppColors.secondary
+                : AppColors.textLight,
+          ),
         ),
       ],
     );
@@ -496,7 +518,7 @@ class _PlayerCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Card(
-        color: isSelected ? AppColors.primary.withOpacity(0.1) : null,
+        color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : null,
         child: ListTile(
           onTap: isDisabled ? null : onTap,
           leading: CircleAvatar(
@@ -526,15 +548,22 @@ class _PlayerCard extends StatelessWidget {
               Text(
                 CurrencyFormatter.formatPrice(player.price),
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isDisabled ? AppColors.textSecondary : null,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  color: isDisabled ? AppColors.textSecondary : null,
+                ),
               ),
               if (isSelected)
-                const Icon(Icons.check_circle, color: AppColors.success, size: 18)
+                const Icon(
+                  Icons.check_circle,
+                  color: AppColors.success,
+                  size: 18,
+                )
               else if (!isDisabled)
-                Icon(Icons.add_circle_outline,
-                    color: AppColors.primary, size: 18)
+                Icon(
+                  Icons.add_circle_outline,
+                  color: AppColors.primary,
+                  size: 18,
+                )
               else
                 Icon(Icons.lock, color: AppColors.textSecondary, size: 18),
             ],

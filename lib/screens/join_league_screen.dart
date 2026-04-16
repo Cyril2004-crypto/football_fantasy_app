@@ -62,21 +62,20 @@ class _JoinLeagueScreenState extends State<JoinLeagueScreen> {
           throw Exception('Please select a public league');
         }
 
-        await _leagueService.joinLeague(
-          leagueId: league.id,
-          team: team,
-        );
+        await _leagueService.joinLeague(leagueId: league.id, team: team);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Joined ${league.name}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Joined ${league.name}')));
       }
 
       Navigator.of(context).pop(true);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to join right now. Please try again.')),
+        const SnackBar(
+          content: Text('Unable to join right now. Please try again.'),
+        ),
       );
     } finally {
       if (mounted) {
@@ -104,22 +103,23 @@ class _JoinLeagueScreenState extends State<JoinLeagueScreen> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
-              RadioListTile<JoinLeagueMode>(
-                value: JoinLeagueMode.publicLeague,
-                groupValue: _selectedMode,
-                title: const Text('Public League'),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => _selectedMode = value);
-                },
-              ),
-              RadioListTile<JoinLeagueMode>(
-                value: JoinLeagueMode.privateLeague,
-                groupValue: _selectedMode,
-                title: const Text('Private League'),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => _selectedMode = value);
+              SegmentedButton<JoinLeagueMode>(
+                segments: const [
+                  ButtonSegment<JoinLeagueMode>(
+                    value: JoinLeagueMode.publicLeague,
+                    label: Text('Public League'),
+                    icon: Icon(Icons.public),
+                  ),
+                  ButtonSegment<JoinLeagueMode>(
+                    value: JoinLeagueMode.privateLeague,
+                    label: Text('Private League'),
+                    icon: Icon(Icons.lock_outline),
+                  ),
+                ],
+                selected: <JoinLeagueMode>{_selectedMode},
+                onSelectionChanged: (selection) {
+                  if (selection.isEmpty) return;
+                  setState(() => _selectedMode = selection.first);
                 },
               ),
               const SizedBox(height: 12),
@@ -142,7 +142,7 @@ class _JoinLeagueScreenState extends State<JoinLeagueScreen> {
                     _selectedPublicLeague ??= leagues.first;
 
                     return DropdownButtonFormField<League>(
-                      value: _selectedPublicLeague,
+                      initialValue: _selectedPublicLeague,
                       decoration: const InputDecoration(
                         labelText: 'Select Public League',
                         border: OutlineInputBorder(),
@@ -151,7 +151,9 @@ class _JoinLeagueScreenState extends State<JoinLeagueScreen> {
                           .map(
                             (league) => DropdownMenuItem(
                               value: league,
-                              child: Text('${league.name} • ${league.membersCount} members'),
+                              child: Text(
+                                '${league.name} • ${league.membersCount} members',
+                              ),
                             ),
                           )
                           .toList(),

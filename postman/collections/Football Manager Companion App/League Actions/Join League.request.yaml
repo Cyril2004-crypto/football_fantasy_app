@@ -1,0 +1,23 @@
+$kind: http-request
+name: Join League
+method: POST
+url: '{{supabaseLeagueFunctionUrl}}'
+order: 3000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "action": "joinLeague",
+      "userId": "{{userId}}",
+      "userName": "{{userName}}",
+      "leagueCode": "ABC123",
+      "teamName": "My Fantasy Team",
+      "totalPoints": 120,
+      "gameweekPoints": 45,
+      "remainingBudget": 5.5
+    }

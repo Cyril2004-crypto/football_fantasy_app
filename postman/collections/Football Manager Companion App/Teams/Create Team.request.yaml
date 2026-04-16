@@ -1,0 +1,17 @@
+$kind: http-request
+name: Create Team
+method: POST
+url: '{{baseUrl}}/teams/create'
+order: 3000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "My Fantasy Team",
+      "playerIds": ["player1", "player2"]
+    }

@@ -19,8 +19,8 @@ class TeamProvider with ChangeNotifier {
   final TeamService _teamService;
   final PointsCalculatorService _pointsCalculatorService =
       PointsCalculatorService();
-  final LeagueSyncService _leagueSyncService = LeagueSyncService();
   final PlayerService _playerService = PlayerService();
+  LeagueSyncService? _leagueSyncService;
   
   Team? _team;
   bool _isLoading = false;
@@ -41,7 +41,13 @@ class TeamProvider with ChangeNotifier {
         message.contains('clientexception');
   }
 
-  TeamProvider(this._teamService) {
+  LeagueSyncService get _syncService => _leagueSyncService ??= LeagueSyncService();
+
+  TeamProvider(this._teamService, {bool disableAuthSubscription = false}) {
+    if (disableAuthSubscription) {
+      return;
+    }
+
     _authSubscription = firebase_auth.FirebaseAuth.instance
         .authStateChanges()
         .listen((user) async {
@@ -92,7 +98,7 @@ class TeamProvider with ChangeNotifier {
       if (_team != null) {
         _team = await _refreshTeamWithLatestPlayerPoints(_team!);
         await _saveTeamToCache(_team!);
-        await _leagueSyncService.syncTeam(_team!);
+        await _syncService.syncTeam(_team!);
       }
       _isLoading = false;
       notifyListeners();
@@ -101,7 +107,7 @@ class TeamProvider with ChangeNotifier {
       if (cachedTeam != null) {
         _team = await _refreshTeamWithLatestPlayerPoints(cachedTeam);
         await _saveTeamToCache(_team!);
-        await _leagueSyncService.syncTeam(_team!);
+        await _syncService.syncTeam(_team!);
       } else {
         _team = null;
       }
@@ -134,7 +140,7 @@ class TeamProvider with ChangeNotifier {
         );
       }
       await _saveTeamToCache(_team!);
-      await _leagueSyncService.syncTeam(_team!);
+      await _syncService.syncTeam(_team!);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -172,7 +178,7 @@ class TeamProvider with ChangeNotifier {
         );
 
         await _saveTeamToCache(_team!);
-        await _leagueSyncService.syncTeam(_team!);
+        await _syncService.syncTeam(_team!);
         _isLoading = false;
         _errorMessage = null;
         notifyListeners();
@@ -211,7 +217,7 @@ class TeamProvider with ChangeNotifier {
         );
       }
       await _saveTeamToCache(_team!);
-      await _leagueSyncService.syncTeam(_team!);
+      await _syncService.syncTeam(_team!);
       _isLoading = false;
       notifyListeners();
     } catch (e) {

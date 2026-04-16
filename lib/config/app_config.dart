@@ -1,6 +1,9 @@
 class AppConfig {
   // API Configuration
-  static const String apiBaseUrl = 'http://localhost:3000/api';
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:3000/api',
+  );
   static const Duration apiTimeout = Duration(seconds: 30);
 
   // Supabase Configuration (provided via --dart-define or dart-define-from-file)
@@ -49,7 +52,7 @@ class AppConfig {
     return <String>[
       '$startYear/${startYear + 1}',
       '$startYear',
-      '${startYear}-${startYear + 1}',
+      '$startYear-${startYear + 1}',
     ];
   }
 

@@ -1,0 +1,11 @@
+$kind: http-request
+name: Get Premier League Matches by Matchday
+method: GET
+url: 'https://api.football-data.org/v4/competitions/PL/matches'
+order: 1000
+headers:
+  - key: X-Auth-Token
+    value: '{{footballDataApiToken}}'
+queryParams:
+  - key: matchday
+    value: '{{matchday}}'

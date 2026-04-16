@@ -1,0 +1,13 @@
+$kind: http-request
+url: "{{supabaseUrl}}/rest/v1/ingestion_alert_events?select=*&is_active=eq.true\
+  &order=last_seen_at.desc&limit=20"
+method: GET
+headers:
+  apikey: "{{supabaseAnonKey}}"
+  Authorization: Bearer {{supabaseJwt}}
+queryParams:
+  select: "*"
+  is_active: eq.true
+  order: last_seen_at.desc
+  limit: "20"
+order: 3000

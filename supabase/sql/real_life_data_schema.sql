@@ -241,82 +241,106 @@ alter table public.fd_player_injuries enable row level security;
 alter table public.fd_player_suspensions enable row level security;
 alter table public.fd_player_form enable row level security;
 
+revoke all on table public.fd_competitions from public, anon, authenticated;
+revoke all on table public.fd_teams from public, anon, authenticated;
+revoke all on table public.fd_players from public, anon, authenticated;
+revoke all on table public.fd_fixtures from public, anon, authenticated;
+revoke all on table public.fd_player_gameweek_points from public, anon, authenticated;
+revoke all on table public.fd_fixture_events from public, anon, authenticated;
+revoke all on table public.fd_player_match_stats from public, anon, authenticated;
+revoke all on table public.fd_team_form from public, anon, authenticated;
+revoke all on table public.fd_player_injuries from public, anon, authenticated;
+revoke all on table public.fd_player_suspensions from public, anon, authenticated;
+revoke all on table public.fd_player_form from public, anon, authenticated;
+
+grant select on table public.fd_competitions to anon, authenticated;
+grant select on table public.fd_teams to anon, authenticated;
+grant select on table public.fd_players to anon, authenticated;
+grant select on table public.fd_fixtures to anon, authenticated;
+grant select on table public.fd_player_gameweek_points to anon, authenticated;
+grant select on table public.fd_fixture_events to anon, authenticated;
+grant select on table public.fd_player_match_stats to anon, authenticated;
+grant select on table public.fd_team_form to anon, authenticated;
+grant select on table public.fd_player_injuries to anon, authenticated;
+grant select on table public.fd_player_suspensions to anon, authenticated;
+grant select on table public.fd_player_form to anon, authenticated;
+
 do $$
 begin
   if not exists (
     select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fd_competitions' and policyname = 'fd_competitions_read_all'
+    where schemaname = 'public' and tablename = 'fd_competitions' and policyname = 'fd_competitions_read_limited'
   ) then
-    create policy fd_competitions_read_all on public.fd_competitions for select using (true);
+    create policy fd_competitions_read_limited on public.fd_competitions for select to anon, authenticated using (true);
   end if;
 
   if not exists (
     select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fd_teams' and policyname = 'fd_teams_read_all'
+    where schemaname = 'public' and tablename = 'fd_teams' and policyname = 'fd_teams_read_limited'
   ) then
-    create policy fd_teams_read_all on public.fd_teams for select using (true);
+    create policy fd_teams_read_limited on public.fd_teams for select to anon, authenticated using (true);
   end if;
 
   if not exists (
     select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fd_players' and policyname = 'fd_players_read_all'
+    where schemaname = 'public' and tablename = 'fd_players' and policyname = 'fd_players_read_limited'
   ) then
-    create policy fd_players_read_all on public.fd_players for select using (true);
+    create policy fd_players_read_limited on public.fd_players for select to anon, authenticated using (true);
   end if;
 
   if not exists (
     select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fd_fixtures' and policyname = 'fd_fixtures_read_all'
+    where schemaname = 'public' and tablename = 'fd_fixtures' and policyname = 'fd_fixtures_read_limited'
   ) then
-    create policy fd_fixtures_read_all on public.fd_fixtures for select using (true);
+    create policy fd_fixtures_read_limited on public.fd_fixtures for select to anon, authenticated using (true);
   end if;
 
   if not exists (
     select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fd_player_gameweek_points' and policyname = 'fd_player_gameweek_points_read_all'
+    where schemaname = 'public' and tablename = 'fd_player_gameweek_points' and policyname = 'fd_player_gameweek_points_read_limited'
   ) then
-    create policy fd_player_gameweek_points_read_all on public.fd_player_gameweek_points for select using (true);
+    create policy fd_player_gameweek_points_read_limited on public.fd_player_gameweek_points for select to anon, authenticated using (true);
   end if;
 
   if not exists (
     select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fd_fixture_events' and policyname = 'fd_fixture_events_read_all'
+    where schemaname = 'public' and tablename = 'fd_fixture_events' and policyname = 'fd_fixture_events_read_limited'
   ) then
-    create policy fd_fixture_events_read_all on public.fd_fixture_events for select using (true);
+    create policy fd_fixture_events_read_limited on public.fd_fixture_events for select to anon, authenticated using (true);
   end if;
 
   if not exists (
     select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fd_player_match_stats' and policyname = 'fd_player_match_stats_read_all'
+    where schemaname = 'public' and tablename = 'fd_player_match_stats' and policyname = 'fd_player_match_stats_read_limited'
   ) then
-    create policy fd_player_match_stats_read_all on public.fd_player_match_stats for select using (true);
+    create policy fd_player_match_stats_read_limited on public.fd_player_match_stats for select to anon, authenticated using (true);
   end if;
 
   if not exists (
     select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fd_team_form' and policyname = 'fd_team_form_read_all'
+    where schemaname = 'public' and tablename = 'fd_team_form' and policyname = 'fd_team_form_read_limited'
   ) then
-    create policy fd_team_form_read_all on public.fd_team_form for select using (true);
+    create policy fd_team_form_read_limited on public.fd_team_form for select to anon, authenticated using (true);
   end if;
 
   if not exists (
     select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fd_player_injuries' and policyname = 'fd_player_injuries_read_all'
+    where schemaname = 'public' and tablename = 'fd_player_injuries' and policyname = 'fd_player_injuries_read_limited'
   ) then
-    create policy fd_player_injuries_read_all on public.fd_player_injuries for select using (true);
+    create policy fd_player_injuries_read_limited on public.fd_player_injuries for select to anon, authenticated using (true);
   end if;
 
   if not exists (
     select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fd_player_suspensions' and policyname = 'fd_player_suspensions_read_all'
+    where schemaname = 'public' and tablename = 'fd_player_suspensions' and policyname = 'fd_player_suspensions_read_limited'
   ) then
-    create policy fd_player_suspensions_read_all on public.fd_player_suspensions for select using (true);
+    create policy fd_player_suspensions_read_limited on public.fd_player_suspensions for select to anon, authenticated using (true);
   end if;
 
   if not exists (
     select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'fd_player_form' and policyname = 'fd_player_form_read_all'
+    where schemaname = 'public' and tablename = 'fd_player_form' and policyname = 'fd_player_form_read_limited'
   ) then
-    create policy fd_player_form_read_all on public.fd_player_form for select using (true);
+    create policy fd_player_form_read_limited on public.fd_player_form for select to anon, authenticated using (true);
   end if;
 end $$;

@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Inplay Livescores
+method: GET
+url: 'https://api.sportmonks.com/v3/football/livescores/inplay'
+order: 1000
+queryParams:
+  - key: include
+    value: 'participants;scores;periods;events;league.country;round'
+  - key: api_token
+    value: '{{sportmonksApiToken}}'

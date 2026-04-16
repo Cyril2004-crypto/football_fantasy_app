@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Expert Tips
+method: GET
+url: '{{baseUrl}}/tips'
+order: 2000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'

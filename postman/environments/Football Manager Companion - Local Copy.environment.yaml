@@ -1,0 +1,20 @@
+﻿name: Football Manager Companion - Local Copy
+values:
+  - key: baseUrl
+    value: http://localhost:3000/api
+    enabled: true
+  - key: authToken
+    value: ''
+    enabled: true
+  - key: teamId
+    value: ''
+    enabled: true
+  - key: supabaseUrl
+    value: ''
+    enabled: true
+  - key: supabaseAnonKey
+    value: ''
+    enabled: true
+  - key: supabaseJwt
+    value: ''
+    enabled: true

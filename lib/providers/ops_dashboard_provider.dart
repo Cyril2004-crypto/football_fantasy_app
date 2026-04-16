@@ -25,7 +25,7 @@ class OpsDashboardProvider with ChangeNotifier {
       _error = null;
     } catch (e) {
       _error = e.toString();
-      print('Error loading dashboard: $e');
+      debugPrint('Error loading dashboard: $e');
     } finally {
       _isLoading = false;
       notifyListeners();

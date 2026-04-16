@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
@@ -46,10 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
@@ -98,14 +95,21 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
   @override
   void initState() {
     super.initState();
-    _matchesFuture = _matchService.getPremierLeagueMatchesByMatchday(1, competitionId: 2021);
+    _matchesFuture = _matchService.getPremierLeagueMatchesByMatchday(
+      1,
+      competitionId: 2021,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final displayName = context.select<AuthProvider, String?>((provider) => provider.user?.displayName);
-    final team = context.select<TeamProvider, Team?>((provider) => provider.team);
-    
+    final displayName = context.select<AuthProvider, String?>(
+      (provider) => provider.user?.displayName,
+    );
+    final team = context.select<TeamProvider, Team?>(
+      (provider) => provider.team,
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppStrings.home),
@@ -118,16 +122,14 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
             // Welcome Header
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-              ),
+              decoration: BoxDecoration(gradient: AppColors.primaryGradient),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Welcome back!',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textLight.withOpacity(0.9),
+                      color: AppColors.textLight.withValues(alpha: 0.9),
                     ),
                   ),
                   Text(
@@ -172,9 +174,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                       color: AppColors.secondary,
                       onTap: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const NewsScreen(),
-                          ),
+                          MaterialPageRoute(builder: (_) => const NewsScreen()),
                         );
                       },
                     ),
@@ -223,7 +223,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                           child: _buildStatCard(
                             context,
                             'Bank',
-                            '£${team.remainingBudget.toStringAsFixed(1)}m',
+                            'Â£${team.remainingBudget.toStringAsFixed(1)}m',
                             Icons.account_balance_wallet,
                             AppColors.info,
                           ),
@@ -271,7 +271,9 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                         );
                       }
 
-                      if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                      if (snapshot.hasError ||
+                          !snapshot.hasData ||
+                          snapshot.data!.isEmpty) {
                         return Container(
                           height: 120,
                           decoration: BoxDecoration(
@@ -281,9 +283,8 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                           child: Center(
                             child: Text(
                               'No matches available',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: AppColors.textSecondary),
                             ),
                           ),
                         );
@@ -294,7 +295,8 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                         children: [
                           for (var i = 0; i < matches.length; i++) ...[
                             _buildMatchCard(context, matches[i]),
-                            if (i < matches.length - 1) const SizedBox(height: 8),
+                            if (i < matches.length - 1)
+                              const SizedBox(height: 8),
                           ],
                         ],
                       );
@@ -319,21 +321,21 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                   const SizedBox(height: 12),
                   _buildTipCard(
                     context,
-                    '💡 Check Transfers',
+                    'ðŸ’¡ Check Transfers',
                     'Review available players within your budget',
                     AppColors.primary,
                   ),
                   const SizedBox(height: 8),
                   _buildTipCard(
                     context,
-                    '📊 Form Matters',
+                    'ðŸ“Š Form Matters',
                     'Players in great form will likely score more points',
                     AppColors.success,
                   ),
                   const SizedBox(height: 8),
                   _buildTipCard(
                     context,
-                    '🛡️ Injury Watch',
+                    'ðŸ›¡ï¸ Injury Watch',
                     'Monitor team news before gameweek deadline',
                     AppColors.warning,
                   ),
@@ -356,9 +358,9 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -374,9 +376,9 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
           const SizedBox(height: 4),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -384,10 +386,18 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
   }
 
   Widget _buildSquadComposition(BuildContext context, List<Player> players) {
-    final gkCount = players.where((p) => p.position == PlayerPosition.goalkeeper).length;
-    final defCount = players.where((p) => p.position == PlayerPosition.defender).length;
-    final midCount = players.where((p) => p.position == PlayerPosition.midfielder).length;
-    final fwdCount = players.where((p) => p.position == PlayerPosition.forward).length;
+    final gkCount = players
+        .where((p) => p.position == PlayerPosition.goalkeeper)
+        .length;
+    final defCount = players
+        .where((p) => p.position == PlayerPosition.defender)
+        .length;
+    final midCount = players
+        .where((p) => p.position == PlayerPosition.midfielder)
+        .length;
+    final fwdCount = players
+        .where((p) => p.position == PlayerPosition.forward)
+        .length;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -415,7 +425,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Center(
@@ -432,10 +442,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
         const SizedBox(height: 4),
         Text(
           position,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -448,7 +455,9 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isLive ? AppColors.accent.withOpacity(0.1) : AppColors.background,
+        color: isLive
+            ? AppColors.accent.withValues(alpha: 0.1)
+            : AppColors.background,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isLive ? AppColors.accent : AppColors.divider,
@@ -503,9 +512,12 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
               const SizedBox(width: 12),
               // Score/Time
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -513,16 +525,15 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                     if (isFinished)
                       Text(
                         '${match.homeScore} - ${match.awayScore}',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
                       )
                     else
                       Text(
-                        match.kickoffTime.hour.toString().padLeft(2, '0') +
-                            ':' +
-                            match.kickoffTime.minute.toString().padLeft(2, '0'),
+                        '${match.kickoffTime.hour.toString().padLeft(2, '0')}:${match.kickoffTime.minute.toString().padLeft(2, '0')}',
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -546,9 +557,9 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,9 +574,9 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
           const SizedBox(height: 4),
           Text(
             description,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -586,9 +597,9 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.35)),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -597,16 +608,16 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
             const SizedBox(height: 6),
             Text(
               title,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 2),
             Text(
               subtitle,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -625,9 +636,7 @@ class MyTeamTabScreen extends StatelessWidget {
         title: const Text(AppStrings.myTeam),
         backgroundColor: AppColors.primary,
       ),
-      body: const Center(
-        child: Text('My Team - Coming Soon'),
-      ),
+      body: const Center(child: Text('My Team - Coming Soon')),
     );
   }
 }
@@ -667,10 +676,7 @@ class _LeaguesTabScreenState extends State<LeaguesTabScreen> {
         title: const Text(AppStrings.leagues),
         backgroundColor: AppColors.primary,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refresh,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
         ],
       ),
       body: RefreshIndicator(
@@ -682,7 +688,9 @@ class _LeaguesTabScreenState extends State<LeaguesTabScreen> {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final data = snapshot.data ?? const _LeaguesData(myLeagues: [], publicLeagues: []);
+            final data =
+                snapshot.data ??
+                const _LeaguesData(myLeagues: [], publicLeagues: []);
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -691,9 +699,12 @@ class _LeaguesTabScreenState extends State<LeaguesTabScreen> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () async {
-                          final refreshed = await Navigator.of(context).push<bool>(
-                            MaterialPageRoute(builder: (_) => const CreateLeagueScreen()),
-                          );
+                          final refreshed = await Navigator.of(context)
+                              .push<bool>(
+                                MaterialPageRoute(
+                                  builder: (_) => const CreateLeagueScreen(),
+                                ),
+                              );
                           if (refreshed == true) _refresh();
                         },
                         child: const Text(AppStrings.createLeague),
@@ -703,9 +714,12 @@ class _LeaguesTabScreenState extends State<LeaguesTabScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () async {
-                          final refreshed = await Navigator.of(context).push<bool>(
-                            MaterialPageRoute(builder: (_) => const JoinLeagueScreen()),
-                          );
+                          final refreshed = await Navigator.of(context)
+                              .push<bool>(
+                                MaterialPageRoute(
+                                  builder: (_) => const JoinLeagueScreen(),
+                                ),
+                              );
                           if (refreshed == true) _refresh();
                         },
                         child: const Text(AppStrings.joinLeague),
@@ -714,13 +728,25 @@ class _LeaguesTabScreenState extends State<LeaguesTabScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                Text('My Leagues', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'My Leagues',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 12),
-                ..._buildLeagueCards(data.myLeagues, emptyText: 'You have not joined any leagues yet.'),
+                ..._buildLeagueCards(
+                  data.myLeagues,
+                  emptyText: 'You have not joined any leagues yet.',
+                ),
                 const SizedBox(height: 24),
-                Text('Public Leagues', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'Public Leagues',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 12),
-                ..._buildLeagueCards(data.publicLeagues, emptyText: 'No public leagues found.'),
+                ..._buildLeagueCards(
+                  data.publicLeagues,
+                  emptyText: 'No public leagues found.',
+                ),
               ],
             );
           },
@@ -729,7 +755,10 @@ class _LeaguesTabScreenState extends State<LeaguesTabScreen> {
     );
   }
 
-  List<Widget> _buildLeagueCards(List<League> leagues, {required String emptyText}) {
+  List<Widget> _buildLeagueCards(
+    List<League> leagues, {
+    required String emptyText,
+  }) {
     if (leagues.isEmpty) {
       return [
         Padding(
@@ -748,7 +777,9 @@ class _LeaguesTabScreenState extends State<LeaguesTabScreen> {
                 color: AppColors.primary,
               ),
               title: Text(league.name),
-              subtitle: Text('${league.membersCount} members${league.code != null ? ' • Code: ${league.code}' : ''}'),
+              subtitle: Text(
+                '${league.membersCount} members${league.code != null ? ' â€¢ Code: ${league.code}' : ''}',
+              ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.of(context).push(
@@ -798,13 +829,15 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
       return Future<List<Match>>.value(cached);
     }
 
-    return _matchService.getPremierLeagueMatchesByMatchday(
-      _selectedMatchday,
-      competitionId: _competitionId,
-    ).then((matches) {
-      _fixturesCache[_selectedMatchday] = matches;
-      return matches;
-    });
+    return _matchService
+        .getPremierLeagueMatchesByMatchday(
+          _selectedMatchday,
+          competitionId: _competitionId,
+        )
+        .then((matches) {
+          _fixturesCache[_selectedMatchday] = matches;
+          return matches;
+        });
   }
 
   void _refresh() {
@@ -833,10 +866,13 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: _selectedMatchday,
+                    initialValue: _selectedMatchday,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                     items: List.generate(
                       38,
@@ -872,7 +908,11 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.error_outline, size: 40, color: AppColors.error),
+                          const Icon(
+                            Icons.error_outline,
+                            size: 40,
+                            color: AppColors.error,
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             'Failed to load EPL fixtures for matchweek $_selectedMatchday',
@@ -882,9 +922,8 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
                           const SizedBox(height: 8),
                           Text(
                             '${snapshot.error}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textSecondary),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 16),
@@ -914,16 +953,20 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
                     itemCount: fixtures.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final match = fixtures[index];
                       return Card(
                         child: ListTile(
-                          title: Text('${match.homeTeamName} vs ${match.awayTeamName}'),
+                          title: Text(
+                            '${match.homeTeamName} vs ${match.awayTeamName}',
+                          ),
                           subtitle: Text(
                             '${match.kickoffTime.toLocal()}'.split('.').first,
                           ),
-                          trailing: (match.homeScore != null && match.awayScore != null)
+                          trailing:
+                              (match.homeScore != null &&
+                                  match.awayScore != null)
                               ? Text('${match.homeScore} - ${match.awayScore}')
                               : const Text('vs'),
                         ),
@@ -1078,8 +1121,9 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
                 children: [
                   CircleAvatar(
                     radius: 50,
-                    backgroundImage:
-                        user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
+                    backgroundImage: user?.photoUrl != null
+                        ? NetworkImage(user!.photoUrl!)
+                        : null,
                     child: user?.photoUrl == null
                         ? const Icon(Icons.person, size: 50)
                         : null,
@@ -1093,8 +1137,8 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
                   Text(
                     user?.email ?? '',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -1102,9 +1146,9 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
             const SizedBox(height: 28),
             Text(
               'Favorite EPL Club',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             if (!_prefsReady)
@@ -1119,7 +1163,7 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
                         label: Text(club),
                         selected: _favoriteClub == club,
                         onSelected: (_) => _selectFavoriteClub(club),
-                        selectedColor: AppColors.primary.withOpacity(0.2),
+                        selectedColor: AppColors.primary.withValues(alpha: 0.2),
                       ),
                     )
                     .toList(),
@@ -1127,16 +1171,16 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
             const SizedBox(height: 24),
             Text(
               'Favorite EPL Players',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
             Text(
               'Choose as many as you want.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 10),
             if (!_prefsReady)
@@ -1151,7 +1195,9 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
                         label: Text(player),
                         selected: _favoritePlayers.contains(player),
                         onSelected: (_) => _toggleFavoritePlayer(player),
-                        selectedColor: AppColors.secondary.withOpacity(0.3),
+                        selectedColor: AppColors.secondary.withValues(
+                          alpha: 0.3,
+                        ),
                       ),
                     )
                     .toList(),
@@ -1161,8 +1207,8 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
               Text(
                 'Selected club: ${_favoriteClub ?? 'None'}\nSelected players: ${_favoritePlayers.isEmpty ? 'None' : _favoritePlayers.length}',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  color: AppColors.textSecondary,
+                ),
               ),
             const SizedBox(height: 24),
             Card(
@@ -1174,15 +1220,15 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
                     Text(
                       'Advanced Tools',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Ops and analytics features are available when Supabase is initialized.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
@@ -1204,7 +1250,8 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
                           ? () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => TeamAnalyticsScreen(team: team),
+                                  builder: (_) =>
+                                      TeamAnalyticsScreen(team: team),
                                 ),
                               );
                             }
@@ -1217,9 +1264,8 @@ class _ProfileTabScreenState extends State<ProfileTabScreen> {
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           'Create or load your team first to view team analytics.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
                         ),
                       ),
                   ],

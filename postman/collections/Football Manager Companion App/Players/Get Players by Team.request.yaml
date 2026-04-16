@@ -1,0 +1,11 @@
+$kind: http-request
+name: Get Players by Team
+method: GET
+url: '{{baseUrl}}/players/team'
+order: 4000
+headers:
+  - key: Authorization
+    value: 'Bearer {{authToken}}'
+queryParams:
+  - key: teamId
+    value: '{{teamId}}'
