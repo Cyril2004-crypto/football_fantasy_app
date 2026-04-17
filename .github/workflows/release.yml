@@ -49,11 +49,20 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
+      - name: Build Android App Bundle
+        run: flutter build appbundle --release
+
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
+          name: android-release
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload Android App Bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aab
+          path: build/app/outputs/bundle/release/app-release.aab
 
   build-web:
     name: Build Web
@@ -134,7 +143,13 @@ jobs:
       - name: Download Android artifact
         uses: actions/download-artifact@v4
         with:
-          name: android-apk
+          name: android-release
+          path: artifacts
+
+      - name: Download Android App Bundle artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-aab
           path: artifacts
 
       - name: Download web artifact
@@ -158,5 +173,6 @@ jobs:
           prerelease: ${{ env.RELEASE_PRERELEASE }}
           files: |
             artifacts/app-release.apk
+            artifacts/app-release.aab
             artifacts/web-build.zip
             artifacts/ios-runner-app.tar.gz

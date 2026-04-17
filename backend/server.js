@@ -3,8 +3,9 @@ import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { pathToFileURL } from 'url';
 
-const app = express();
+export const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const API_BASE = '/api';
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'football-fantasy-app-498ac';
@@ -44,7 +45,7 @@ const requireSupabase = (res) => {
   return false;
 };
 
-const toTeamResponse = (row, players = []) => ({
+export const toTeamResponse = (row, players = []) => ({
   id: String(row?.id || ''),
   userId: String(row?.user_id || ''),
   name: String(row?.team_name || 'My Team'),
@@ -54,6 +55,14 @@ const toTeamResponse = (row, players = []) => ({
   gameweekPoints: Number(row?.gameweek_points || 0),
   createdAt: new Date(row?.updated_at || Date.now()).toISOString(),
   updatedAt: row?.updated_at ? new Date(row.updated_at).toISOString() : null
+});
+
+export const buildLeagueActionPayload = (action, user, body = {}) => ({
+  action,
+  userId: user.uid,
+  userName: user.displayName || user.email,
+  email: user.email,
+  ...body
 });
 
 const ensureUserRow = async (firebaseUid, email, displayName) => {
@@ -125,13 +134,7 @@ const invokeLeagueAction = async (action, user, body = {}) => {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${user.idToken}`
     },
-    body: JSON.stringify({
-      action,
-      userId: user.uid,
-      userName: user.displayName || user.email,
-      email: user.email,
-      ...body
-    })
+    body: JSON.stringify(buildLeagueActionPayload(action, user, body))
   });
 
   const data = await response.json().catch(() => ({}));
@@ -604,6 +607,10 @@ app.use((req, res) => {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
 });
 
-app.listen(PORT, () => {
-  console.log(`Football Manager Companion API running on http://localhost:${PORT}${API_BASE}`);
-});
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMainModule) {
+  app.listen(PORT, () => {
+    console.log(`Football Manager Companion API running on http://localhost:${PORT}${API_BASE}`);
+  });
+}

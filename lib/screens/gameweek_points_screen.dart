@@ -7,8 +7,13 @@ import '../models/team.dart';
 
 class GameweekPointsScreen extends StatefulWidget {
   final Team team;
+  final SupabaseClient? clientOverride;
 
-  const GameweekPointsScreen({super.key, required this.team});
+  const GameweekPointsScreen({
+    super.key,
+    required this.team,
+    this.clientOverride,
+  });
 
   @override
   State<GameweekPointsScreen> createState() => _GameweekPointsScreenState();
@@ -19,6 +24,10 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
   late Future<Map<String, int>> _pointsFuture;
 
   SupabaseClient get _client {
+    if (widget.clientOverride != null) {
+      return widget.clientOverride!;
+    }
+
     try {
       return Supabase.instance.client;
     } catch (_) {

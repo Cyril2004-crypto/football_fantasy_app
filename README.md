@@ -23,6 +23,14 @@ Use the trusted backend write flow documented in `docs/supabase_option2_setup.md
 - Confirm backend health endpoint responds: `GET http://localhost:3000/api/health`.
 - Build artifacts generated and validated for target platform.
 
+## Release Governance and Post-Launch Ops
+
+- Release governance: [docs/release_governance.md](docs/release_governance.md)
+- Rollback anchors: [docs/rollback_anchors.md](docs/rollback_anchors.md)
+- Product analytics plan: [docs/product_analytics_dashboard.md](docs/product_analytics_dashboard.md)
+
+Recommended stable tag for the first governed release: `v1.0.5`
+
 ## GitHub Actions CI/CD
 
 Two workflows are configured in `.github/workflows`:
@@ -52,10 +60,23 @@ git push origin v1.0.1
 ### Release Artifacts Produced
 
 - Android: `app-release.apk`
+- Android store artifact: `app-release.aab`
 - Web: `web-build.zip`
 - iOS (unsigned): `ios-runner-app.tar.gz`
 
 The workflow publishes a GitHub Release with these artifacts attached.
+
+### Governance and Guardrails
+
+- Secret scanning runs in GitHub Actions via the `Secret Scan` workflow.
+- Local pre-commit secret guardrails are available in `.githooks/pre-commit`.
+- Critical-flow smoke coverage runs in the nightly E2E workflow.
+
+To enable the local hook path:
+
+```powershell
+git config core.hooksPath .githooks
+```
 
 A few resources to get you started if this is your first Flutter project:
 
