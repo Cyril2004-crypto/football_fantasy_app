@@ -53,3 +53,6 @@ backend/node_modules/
 
 # VS Code Postman extension local state
 .postman/
+
+# Office temporary lock files
+~$*
