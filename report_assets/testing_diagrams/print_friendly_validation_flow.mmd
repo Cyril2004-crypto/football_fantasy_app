@@ -1,0 +1,10 @@
+flowchart TD
+    classDef white fill:#ffffff,stroke:#111111,color:#111111;
+    classDef ok fill:#ffffff,stroke:#0b6623,color:#0b6623;
+    classDef fail fill:#ffffff,stroke:#8b0000,color:#8b0000;
+
+    A[Start Test Validation]:::white --> B[Run flutter test]:::white
+    B --> C[Run flutter analyze]:::white
+    C --> D{All checks passing?}:::white
+    D -->|Yes| E[Validation Passed\nDeploy/Release Candidate]:::ok
+    D -->|No| F[Validation Failed\nFix and Re-run]:::fail

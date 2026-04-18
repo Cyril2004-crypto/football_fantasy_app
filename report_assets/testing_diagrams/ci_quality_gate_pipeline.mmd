@@ -1,0 +1,12 @@
+flowchart LR
+    A[Developer Push or PR] --> B[GitHub Actions: CI Workflow]
+    B --> C[dart format --set-exit-if-changed .]
+    C --> D{Formatting clean?}
+    D -->|No| E[Fail CI\nRequest formatting fixes]
+    D -->|Yes| F[flutter analyze]
+    F --> G{Analyzer clean?}
+    G -->|No| H[Fail CI\nFix code issues]
+    G -->|Yes| I[flutter test]
+    I --> J{All tests pass?}
+    J -->|No| K[Fail CI\nDebug regressions]
+    J -->|Yes| L[CI Success\nReady for release flow]

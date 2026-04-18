@@ -1,0 +1,21 @@
+flowchart TD
+    A[Automated Validation Run] --> B[Unit Tests]
+    A --> C[Integration-Style Widget Tests]
+    A --> D[Static Analysis]
+
+    B --> B1[ops_dashboard_service_test.dart]
+    B --> B2[team_analytics_service_test.dart]
+
+    C --> C1[dashboard_and_analytics_screen_test.dart]
+    C --> C2[widget_test.dart]
+
+    D --> D1[flutter analyze]
+
+    B1 --> E[Pass]
+    B2 --> E
+    C1 --> E
+    C2 --> E
+    D1 --> E
+
+    E --> F[Overall Result: 14 Passed, 0 Failed]
+    F --> G[Release Readiness Signal: GREEN]

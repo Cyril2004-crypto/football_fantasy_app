@@ -56,3 +56,7 @@ backend/node_modules/
 
 # Office temporary lock files
 ~$*
+
+# Generated report document outputs
+Final_Project_Report*.docx
+Final_Project_Report*.rtf
