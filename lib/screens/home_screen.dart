@@ -80,7 +80,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Placeholder tab screens
 class HomeTabScreen extends StatefulWidget {
   const HomeTabScreen({super.key});
 
@@ -318,27 +317,15 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _buildInsightSubtitle(displayName, team),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                   const SizedBox(height: 12),
-                  _buildTipCard(
-                    context,
-                    'ðŸ’¡ Check Transfers',
-                    'Review available players within your budget',
-                    AppColors.primary,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTipCard(
-                    context,
-                    'ðŸ“Š Form Matters',
-                    'Players in great form will likely score more points',
-                    AppColors.success,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTipCard(
-                    context,
-                    'ðŸ›¡ï¸ Injury Watch',
-                    'Monitor team news before gameweek deadline',
-                    AppColors.warning,
-                  ),
+                  ..._buildInsightCards(context, team, displayName),
                 ],
               ),
             ),
@@ -583,6 +570,213 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
     );
   }
 
+  String _buildInsightSubtitle(String? displayName, Team? team) {
+    final hour = DateTime.now().hour;
+    final timeLabel = hour < 12
+        ? 'morning'
+        : hour < 18
+            ? 'afternoon'
+            : 'evening';
+
+    if (team == null) {
+      return '${displayName != null ? 'Hi $displayName,' : 'Hi there,'} your $timeLabel checklist is to build a squad and keep an eye on live form.';
+    }
+
+    return '${displayName != null ? 'Hi $displayName,' : 'Hi there,'} here is what matters for ${team.name} right now.';
+  }
+
+  List<Widget> _buildInsightCards(
+    BuildContext context,
+    Team? team,
+    String? displayName,
+  ) {
+    final insights = _generateInsightCards(team: team, displayName: displayName);
+
+    return [
+      for (var i = 0; i < insights.length; i++) ...[
+        _buildTipCard(
+          context,
+          insights[i].title,
+          insights[i].description,
+          insights[i].color,
+        ),
+        if (i < insights.length - 1) const SizedBox(height: 8),
+      ],
+    ];
+  }
+
+  List<_InsightCardData> _generateInsightCards({
+    required Team? team,
+    required String? displayName,
+  }) {
+    final now = DateTime.now();
+    final cards = <_InsightCardData>[];
+
+    cards.add(_timeAwareCard(now));
+
+    if (team == null || team.players.isEmpty) {
+      cards.add(
+        _InsightCardData(
+          title: '🧩 Build Your Core',
+          description:
+              'Create a balanced squad first — a steady base makes later upgrades much easier.',
+          color: AppColors.primary,
+        ),
+      );
+      cards.add(
+        _InsightCardData(
+          title: '⭐ Watch Form Early',
+          description:
+              'When you do pick your first players, start with high-form options rather than chasing last week only.',
+          color: AppColors.success,
+        ),
+      );
+      return cards;
+    }
+
+    final topPlayer = _topPlayerByScore(team.players);
+    final injuredCount = team.players.where((p) => p.isInjured).length;
+    final suspendedCount = team.players.where((p) => p.isSuspended).length;
+    final forwardCount = team.players
+        .where((p) => p.position == PlayerPosition.forward)
+        .length;
+    final averageForm = team.players.isEmpty
+        ? 0.0
+        : team.players.fold<double>(0, (sum, p) => sum + p.form) /
+            team.players.length;
+
+    cards.add(
+      _InsightCardData(
+        title: '📈 ${team.name} snapshot',
+        description:
+            'You are on ${team.totalPoints} total points with £${team.remainingBudget.toStringAsFixed(1)}m in the bank.',
+        color: AppColors.primary,
+      ),
+    );
+
+    if (topPlayer != null) {
+      cards.add(
+        _InsightCardData(
+          title: '🌟 ${topPlayer.name} is leading',
+          description:
+              '${topPlayer.clubName}’s ${topPlayer.position.name} has ${topPlayer.points} total points and ${topPlayer.gameweekPoints} this gameweek.',
+          color: AppColors.success,
+        ),
+      );
+    }
+
+    if (injuredCount + suspendedCount > 0) {
+      cards.add(
+        _InsightCardData(
+          title: '🛡️ Availability check',
+          description:
+              '$injuredCount injured and $suspendedCount suspended players are in your squad — review them before the deadline.',
+          color: AppColors.warning,
+        ),
+      );
+    } else {
+      cards.add(
+        _InsightCardData(
+          title: '✅ Availability looks clean',
+          description:
+              'No injured or suspended players detected, so your squad is currently low-risk for the next deadline.',
+          color: AppColors.success,
+        ),
+      );
+    }
+
+    if (team.remainingBudget <= 2.0) {
+      cards.add(
+        _InsightCardData(
+          title: '💷 Budget is tight',
+          description:
+              'With only £${team.remainingBudget.toStringAsFixed(1)}m left, prioritise one-for-one upgrades over a full restructure.',
+          color: AppColors.accent,
+        ),
+      );
+    } else {
+      cards.add(
+        _InsightCardData(
+          title: '🔁 You have room to move',
+          description:
+              'Your bank gives you flexibility, so you can target value picks without breaking the rest of the squad.',
+          color: AppColors.info,
+        ),
+      );
+    }
+
+    if (forwardCount < 2) {
+      cards.add(
+        _InsightCardData(
+          title: '🎯 Forward line is light',
+          description:
+              'You only have $forwardCount forward${forwardCount == 1 ? '' : 's'} right now, so it may be worth checking attacking upside.',
+          color: Colors.orange,
+        ),
+      );
+    }
+
+    if (averageForm >= 6.5) {
+      cards.add(
+        _InsightCardData(
+          title: '🔥 Team form is healthy',
+          description:
+              'Your squad’s average form is ${averageForm.toStringAsFixed(1)}, which suggests holding steady could be the smart move.',
+          color: AppColors.success,
+        ),
+      );
+    }
+
+    return cards.take(4).toList();
+  }
+
+  _InsightCardData _timeAwareCard(DateTime now) {
+    if (now.weekday == DateTime.friday || now.weekday == DateTime.saturday) {
+      return _InsightCardData(
+        title: '⏰ Deadline mode',
+        description:
+            'It’s close to the weekend window, so double-check captaincy, injuries, and bench order before locking in moves.',
+        color: AppColors.warning,
+      );
+    }
+
+    if (now.hour < 12) {
+      return _InsightCardData(
+        title: '☀️ Morning reset',
+        description:
+            'Use the quieter start of the day to review transfers and confirm no last-minute team news has changed.',
+        color: AppColors.primary,
+      );
+    }
+
+    if (now.hour < 18) {
+      return _InsightCardData(
+        title: '📊 Afternoon check-in',
+        description:
+            'This is a good time to compare form and fixtures, especially if you’re planning one transfer rather than a full rebuild.',
+        color: AppColors.info,
+      );
+    }
+
+    return _InsightCardData(
+      title: '🌙 Evening watchlist',
+      description:
+          'Before the day ends, scan for injuries, suspensions, and any live match momentum that affects your next move.',
+      color: AppColors.accent,
+    );
+  }
+
+  Player? _topPlayerByScore(List<Player> players) {
+    if (players.isEmpty) return null;
+
+    final sorted = [...players]..sort((a, b) {
+      final pointsComparison = b.points.compareTo(a.points);
+      if (pointsComparison != 0) return pointsComparison;
+      return b.gameweekPoints.compareTo(a.gameweekPoints);
+    });
+    return sorted.first;
+  }
+
   Widget _buildShortcutCard(
     BuildContext context, {
     required String title,
@@ -624,6 +818,18 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
       ),
     );
   }
+}
+
+class _InsightCardData {
+  final String title;
+  final String description;
+  final Color color;
+
+  const _InsightCardData({
+    required this.title,
+    required this.description,
+    required this.color,
+  });
 }
 
 class MyTeamTabScreen extends StatelessWidget {
