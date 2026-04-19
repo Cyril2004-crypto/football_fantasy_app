@@ -24,6 +24,7 @@ import 'livescore_screen.dart';
 import 'news_screen.dart';
 import 'ops_admin_screen.dart';
 import 'team_analytics_screen.dart';
+import 'fixture_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -1175,6 +1176,14 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
                                   match.awayScore != null)
                               ? Text('${match.homeScore} - ${match.awayScore}')
                               : const Text('vs'),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    FixtureDetailsScreen(match: match),
+                              ),
+                            );
+                          },
                         ),
                       );
                     },

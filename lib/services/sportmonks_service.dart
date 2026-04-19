@@ -23,6 +23,17 @@ class SportmonksService {
     );
   }
 
+  Future<Map<String, dynamic>> getFixturesByDate(
+    String date, {
+    String? apiToken,
+  }) async {
+    final resolvedToken = _resolveToken(apiToken);
+    return _getWithToken(
+      ApiEndpoints.sportmonksFixturesByDate(date),
+      resolvedToken,
+    );
+  }
+
   Future<Map<String, dynamic>> getFixtureMatchCentre(
     int fixtureId, {
     String? apiToken,
@@ -115,9 +126,10 @@ class SportmonksService {
     String endpoint,
     String token,
   ) async {
-    final tokenizedEndpoint = endpoint.contains('?')
+    final withToken = endpoint.contains('?')
         ? '$endpoint&api_token=$token'
         : '$endpoint?api_token=$token';
+    final tokenizedEndpoint = _withCacheBuster(withToken);
 
     try {
       return await _apiService.getPublic(tokenizedEndpoint);
@@ -128,6 +140,11 @@ class SportmonksService {
           'https://corsproxy.io/?${Uri.encodeComponent(tokenizedEndpoint)}';
       return _apiService.getPublic(proxiedEndpoint);
     }
+  }
+
+  String _withCacheBuster(String url) {
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    return url.contains('?') ? '$url&_ts=$ts' : '$url?_ts=$ts';
   }
 
   String _resolveToken(String? token) {

@@ -23,6 +23,8 @@ class ApiEndpoints {
       '$sportmonksBaseUrl/fixtures/$fixtureId?include=prematchNews.lines;postmatchNews.lines;participants;league;venue;state;scores;events.type';
   static String sportmonksFixtureXgMatch(int fixtureId) =>
       '$sportmonksBaseUrl/fixtures/$fixtureId/xg?include=participants;lineups.details.type';
+  static String sportmonksFixturesByDate(String date) =>
+      '$sportmonksBaseUrl/fixtures/date/$date?include=participants;scores;statistics.type;state';
 
   // Authentication
   static const String register = '$baseUrl/auth/register';
