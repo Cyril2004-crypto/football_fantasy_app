@@ -4,6 +4,12 @@ import '../models/user.dart';
 import 'supabase_service.dart';
 
 class AuthService {
+  factory AuthService() => _instance;
+
+  AuthService._internal();
+
+  static final AuthService _instance = AuthService._internal();
+
   final firebase_auth.FirebaseAuth _firebaseAuth =
       firebase_auth.FirebaseAuth.instance;
   static const String _googleWebClientId = String.fromEnvironment(
@@ -56,7 +62,7 @@ class AuthService {
         password: password,
       );
 
-      await _supabaseService.syncFirebaseUser(
+      await _trySyncFirebaseUser(
         firebaseUid: credential.user!.uid,
         email: credential.user!.email ?? email,
         firebaseIdToken: (await credential.user!.getIdToken()) ?? '',
@@ -90,7 +96,7 @@ class AuthService {
       );
 
       await credential.user?.updateDisplayName(displayName);
-      await _supabaseService.syncFirebaseUser(
+      await _trySyncFirebaseUser(
         firebaseUid: credential.user!.uid,
         email: credential.user!.email ?? email,
         firebaseIdToken: (await credential.user!.getIdToken()) ?? '',
@@ -131,7 +137,7 @@ class AuthService {
       );
       final firebaseUser = userCredential.user!;
 
-      await _supabaseService.syncFirebaseUser(
+      await _trySyncFirebaseUser(
         firebaseUid: firebaseUser.uid,
         email: firebaseUser.email ?? '',
         firebaseIdToken: (await firebaseUser.getIdToken()) ?? '',
@@ -168,6 +174,27 @@ class AuthService {
   // Get ID token for API calls
   Future<String?> getIdToken() async {
     return await _firebaseAuth.currentUser?.getIdToken();
+  }
+
+  Future<void> _trySyncFirebaseUser({
+    required String firebaseUid,
+    required String email,
+    required String firebaseIdToken,
+    String? displayName,
+  }) async {
+    try {
+      await _supabaseService.syncFirebaseUser(
+        firebaseUid: firebaseUid,
+        email: email,
+        firebaseIdToken: firebaseIdToken,
+        displayName: displayName,
+      );
+    } catch (e) {
+      // Do not block authentication on profile sync outages.
+      // The user is already authenticated with Firebase at this point.
+      // ignore: avoid_print
+      print('! Supabase profile sync error: $e');
+    }
   }
 
   // Handle auth exceptions

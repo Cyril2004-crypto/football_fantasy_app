@@ -26,9 +26,22 @@ import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
   final errorReporting = ErrorReportingService.instance;
 
+  await runZonedGuarded<Future<void>>(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      _configureGlobalErrorHandling(errorReporting);
+      await _bootstrapAndRun();
+    },
+    (error, stack) {
+      debugPrint('❌ Uncaught zone error: $error');
+      errorReporting.recordError(error, stack, reason: 'runZonedGuarded');
+    },
+  );
+}
+
+void _configureGlobalErrorHandling(ErrorReportingService errorReporting) {
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     debugPrint('❌ Flutter framework error: ${details.exceptionAsString()}');
@@ -66,16 +79,6 @@ void main() async {
       ),
     );
   };
-
-  await runZonedGuarded<Future<void>>(
-    () async {
-      await _bootstrapAndRun();
-    },
-    (error, stack) {
-      debugPrint('❌ Uncaught zone error: $error');
-      errorReporting.recordError(error, stack, reason: 'runZonedGuarded');
-    },
-  );
 }
 
 Future<void> _bootstrapAndRun() async {

@@ -28,29 +28,10 @@ class _NewsScreenState extends State<NewsScreen> {
 
   Future<List<_NewsItem>> _loadNews() async {
     try {
-      final liveResponse = await _sportmonksService.getInplayLivescores();
-      final liveRows = liveResponse['data'] is List
-          ? liveResponse['data'] as List<dynamic>
-          : const <dynamic>[];
-
-      final fixtureIds = <int>[];
-      for (final row in liveRows) {
-        if (row is! Map<String, dynamic>) {
-          continue;
-        }
-
-        final id = _readInt(row, const ['id']);
-        if (id != null) {
-          fixtureIds.add(id);
-        }
-
-        if (fixtureIds.length >= 5) {
-          break;
-        }
-      }
-
+      final fixtureIds = await _resolveFixtureIdsForNews(limit: 6);
       if (fixtureIds.isEmpty) {
-        _statusMessage = 'No live fixtures available for news right now';
+        _statusMessage =
+            'No live or recent fixtures available for news right now';
         return const <_NewsItem>[];
       }
 
@@ -58,7 +39,15 @@ class _NewsScreenState extends State<NewsScreen> {
       for (final fixtureId in fixtureIds) {
         try {
           final response = await _sportmonksService.getFixtureNews(fixtureId);
-          final parsed = _extractNewsItems(response);
+          var parsed = _extractNewsItems(response);
+
+          if (parsed.isEmpty) {
+            final centre = await _sportmonksService.getFixtureMatchCentre(
+              fixtureId,
+            );
+            parsed = _extractEventNewsItems(centre);
+          }
+
           items.addAll(parsed);
         } catch (_) {
           // Skip one fixture and continue loading others.
@@ -66,7 +55,8 @@ class _NewsScreenState extends State<NewsScreen> {
       }
 
       if (items.isEmpty) {
-        _statusMessage = 'No Sportmonks news returned yet';
+        _statusMessage =
+            'No Sportmonks news returned yet for recent fixtures';
         return const <_NewsItem>[];
       }
 
@@ -77,6 +67,66 @@ class _NewsScreenState extends State<NewsScreen> {
           'News needs a SPORTMONKS_API_TOKEN in dart_defines.local.json';
       return const <_NewsItem>[];
     }
+  }
+
+  Future<List<int>> _resolveFixtureIdsForNews({int limit = 6}) async {
+    final ids = <int>[];
+    final seen = <int>{};
+
+    final liveResponse = await _sportmonksService.getInplayLivescores();
+    final liveRows = liveResponse['data'] is List
+        ? liveResponse['data'] as List<dynamic>
+        : const <dynamic>[];
+
+    for (final row in liveRows) {
+      if (row is! Map<String, dynamic>) {
+        continue;
+      }
+      final id = _readInt(row, const ['id']);
+      if (id == null || seen.contains(id)) {
+        continue;
+      }
+      seen.add(id);
+      ids.add(id);
+      if (ids.length >= limit) {
+        return ids;
+      }
+    }
+
+    // Fallback: pull recent fixtures (today, yesterday, and 2 days ago).
+    final now = DateTime.now().toUtc();
+    for (var offset = 0; offset <= 2; offset++) {
+      final d = now.subtract(Duration(days: offset));
+      final date = _formatDate(d);
+      final dateResponse = await _sportmonksService.getFixturesByDate(date);
+      final rows = dateResponse['data'] is List
+          ? dateResponse['data'] as List<dynamic>
+          : const <dynamic>[];
+
+      for (final row in rows) {
+        if (row is! Map<String, dynamic>) {
+          continue;
+        }
+        final id = _readInt(row, const ['id']);
+        if (id == null || seen.contains(id)) {
+          continue;
+        }
+        seen.add(id);
+        ids.add(id);
+        if (ids.length >= limit) {
+          return ids;
+        }
+      }
+    }
+
+    return ids;
+  }
+
+  String _formatDate(DateTime value) {
+    final y = value.year.toString().padLeft(4, '0');
+    final m = value.month.toString().padLeft(2, '0');
+    final d = value.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 
   List<_NewsItem> _extractNewsItems(Map<String, dynamic> response) {
@@ -127,6 +177,79 @@ class _NewsScreenState extends State<NewsScreen> {
           _NewsItem(title: title, description: content, source: fixtureTitle),
         );
       }
+    }
+
+    if (items.isEmpty) {
+      final events = data['events'] is List
+          ? data['events'] as List<dynamic>
+          : const <dynamic>[];
+
+      for (final event in events) {
+        if (event is! Map<String, dynamic>) {
+          continue;
+        }
+
+        final minute = _readInt(event, const ['minute']);
+        final playerName = _readString(event['player'], const ['name']);
+        final eventType = (_readString(event['type'], const ['developer_name']) ??
+                _readString(event['type'], const ['name']) ??
+                'match event')
+            .replaceAll('_', ' ')
+            .trim();
+
+        final title = minute == null
+            ? eventType.toUpperCase()
+          : '${eventType.toUpperCase()} - $minute\'';
+        final description = playerName == null || playerName.isEmpty
+            ? 'Event recorded for $fixtureTitle.'
+            : '$playerName involved for $fixtureTitle.';
+
+        items.add(
+          _NewsItem(title: title, description: description, source: fixtureTitle),
+        );
+      }
+    }
+
+    return items;
+  }
+
+  List<_NewsItem> _extractEventNewsItems(Map<String, dynamic> response) {
+    final data = response['data'] is Map<String, dynamic>
+        ? response['data'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+
+    final homeName = _teamNameFromIndex(data, 0);
+    final awayName = _teamNameFromIndex(data, 1);
+    final fixtureTitle = '$homeName vs $awayName';
+
+    final events = data['events'] is List
+        ? data['events'] as List<dynamic>
+        : const <dynamic>[];
+    final items = <_NewsItem>[];
+
+    for (final event in events) {
+      if (event is! Map<String, dynamic>) {
+        continue;
+      }
+
+      final minute = _readInt(event, const ['minute']);
+      final playerName = _readString(event['player'], const ['name']);
+      final eventType = (_readString(event['type'], const ['developer_name']) ??
+              _readString(event['type'], const ['name']) ??
+              'match event')
+          .replaceAll('_', ' ')
+          .trim();
+
+      final title = minute == null
+          ? eventType.toUpperCase()
+          : '${eventType.toUpperCase()} - $minute\'';
+      final description = playerName == null || playerName.isEmpty
+          ? 'Event recorded for $fixtureTitle.'
+          : '$playerName involved for $fixtureTitle.';
+
+      items.add(
+        _NewsItem(title: title, description: description, source: fixtureTitle),
+      );
     }
 
     return items;

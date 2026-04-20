@@ -6,6 +6,7 @@ import '../providers/team_provider.dart';
 import '../providers/ops_dashboard_provider.dart';
 import '../providers/team_analytics_provider.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
 import '../services/league_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
@@ -14,6 +15,7 @@ import '../models/match.dart';
 import '../models/player.dart';
 import '../models/team.dart';
 import '../services/match_service.dart';
+import '../services/sportmonks_service.dart';
 import '../widgets/custom_button.dart';
 import 'login_screen.dart';
 import 'team_status_screen.dart';
@@ -91,14 +93,42 @@ class HomeTabScreen extends StatefulWidget {
 class _HomeTabScreenState extends State<HomeTabScreen> {
   late Future<List<Match>> _matchesFuture;
   final MatchService _matchService = MatchService();
+  static const int _competitionId = 2021;
+  int _selectedMatchday = 1;
+  final Map<int, List<Match>> _matchesCache = <int, List<Match>>{};
 
   @override
   void initState() {
     super.initState();
-    _matchesFuture = _matchService.getPremierLeagueMatchesByMatchday(
-      1,
-      competitionId: 2021,
-    );
+    _matchesFuture = _loadMatches();
+  }
+
+  Future<List<Match>> _loadMatches() {
+    final cached = _matchesCache[_selectedMatchday];
+    if (cached != null) {
+      return Future<List<Match>>.value(cached);
+    }
+
+    return _matchService
+        .getPremierLeagueMatchesByMatchday(
+          _selectedMatchday,
+          competitionId: _competitionId,
+        )
+        .then((matches) {
+          _matchesCache[_selectedMatchday] = matches;
+          return matches;
+        });
+  }
+
+  void _onMatchdayChanged(int value) {
+    if (value == _selectedMatchday) {
+      return;
+    }
+
+    setState(() {
+      _selectedMatchday = value;
+      _matchesFuture = _loadMatches();
+    });
   }
 
   @override
@@ -248,10 +278,59 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Gameweek Matches',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Gameweek Matches',
+                          style: Theme.of(
+                            context,
+                          ).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          'GW $_selectedMatchday',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: AppColors.primary,
+                      thumbColor: AppColors.primary,
+                      inactiveTrackColor: AppColors.divider,
+                      overlayColor: AppColors.primary.withValues(alpha: 0.12),
+                      trackHeight: 4,
+                    ),
+                    child: Slider(
+                      min: 1,
+                      max: 38,
+                      divisions: 37,
+                      label: 'GW $_selectedMatchday',
+                      value: _selectedMatchday.toDouble(),
+                      onChanged: (value) {
+                        _onMatchdayChanged(value.round());
+                      },
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -290,7 +369,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                         );
                       }
 
-                      final matches = snapshot.data!.take(5).toList();
+                      final matches = snapshot.data!;
                       return Column(
                         children: [
                           for (var i = 0; i < matches.length; i++) ...[
@@ -1018,10 +1097,15 @@ class FixturesTabScreen extends StatefulWidget {
 
 class _FixturesTabScreenState extends State<FixturesTabScreen> {
   late final MatchService _matchService;
+  final SportmonksService _sportmonksService = SportmonksService(
+    ApiService(AuthService()),
+  );
   late Future<List<Match>> _fixturesFuture;
   int _selectedMatchday = 1;
   static const int _competitionId = 2021;
   final Map<int, List<Match>> _fixturesCache = <int, List<Match>>{};
+  final Map<String, List<Map<String, dynamic>>> _sportmonksDateCache =
+      <String, List<Map<String, dynamic>>>{};
 
   @override
   void initState() {
@@ -1030,25 +1114,421 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
     _fixturesFuture = _loadFixtures();
   }
 
-  Future<List<Match>> _loadFixtures() {
+  Future<List<Match>> _loadFixtures() async {
     final cached = _fixturesCache[_selectedMatchday];
     if (cached != null) {
       return Future<List<Match>>.value(cached);
     }
 
-    return _matchService
-        .getPremierLeagueMatchesByMatchday(
-          _selectedMatchday,
-          competitionId: _competitionId,
-        )
-        .then((matches) {
-          _fixturesCache[_selectedMatchday] = matches;
-          return matches;
-        });
+    final matches = await _matchService.getPremierLeagueMatchesByMatchday(
+      _selectedMatchday,
+      competitionId: _competitionId,
+    );
+    final enriched = await _enrichFixturesFromSportmonks(matches);
+    _fixturesCache[_selectedMatchday] = enriched;
+    return enriched;
+  }
+
+  Future<List<Match>> _enrichFixturesFromSportmonks(List<Match> matches) async {
+    if (matches.isEmpty) return const <Match>[];
+
+    final dateKeys = <String>{};
+    for (final match in matches) {
+      for (final dt in _candidateDates(match.kickoffTime.toUtc())) {
+        dateKeys.add(_formatDate(dt));
+      }
+    }
+
+    for (final date in dateKeys) {
+      if (_sportmonksDateCache.containsKey(date)) {
+        continue;
+      }
+
+      try {
+        final response = await _sportmonksService.getFixturesByDate(date);
+        final rows = response['data'] is List
+            ? response['data'] as List<dynamic>
+            : const <dynamic>[];
+        _sportmonksDateCache[date] = rows
+            .whereType<Map<String, dynamic>>()
+            .toList();
+      } catch (_) {
+        _sportmonksDateCache[date] = const <Map<String, dynamic>>[];
+      }
+    }
+
+    return matches.map((match) {
+      final row = _findSportmonksFixtureForMatch(match);
+      if (row == null) {
+        return match;
+      }
+
+      final status = _statusFromSportmonksRow(row, fallback: match.status);
+      final score = _scoreFromSportmonksRow(row);
+
+      return Match(
+        id: match.id,
+        homeTeamId: match.homeTeamId,
+        homeTeamName: match.homeTeamName,
+        homeTeamBadge: match.homeTeamBadge,
+        awayTeamId: match.awayTeamId,
+        awayTeamName: match.awayTeamName,
+        awayTeamBadge: match.awayTeamBadge,
+        homeScore: score.$1 ?? match.homeScore,
+        awayScore: score.$2 ?? match.awayScore,
+        status: status,
+        kickoffTime: match.kickoffTime,
+        gameweek: match.gameweek,
+        venue: match.venue,
+      );
+    }).toList();
+  }
+
+  Map<String, dynamic>? _findSportmonksFixtureForMatch(Match match) {
+    final wantedHome = _normalizeTeamName(match.homeTeamName);
+    final wantedAway = _normalizeTeamName(match.awayTeamName);
+    final kickoffUtc = match.kickoffTime.toUtc();
+
+    Map<String, dynamic>? best;
+    int bestScore = -1;
+
+    for (final dt in _candidateDates(kickoffUtc)) {
+      final date = _formatDate(dt);
+      final rows = _sportmonksDateCache[date] ?? const <Map<String, dynamic>>[];
+
+      for (final row in rows) {
+        final teams = _extractHomeAwayTeamNames(row);
+        if (teams == null) {
+          continue;
+        }
+
+        final home = _normalizeTeamName(teams.$1);
+        final away = _normalizeTeamName(teams.$2);
+
+        int score = 0;
+        if (home == wantedHome && away == wantedAway) {
+          score += 4;
+        } else if (home == wantedAway && away == wantedHome) {
+          score += 2;
+        } else {
+          final homeLikely = _isLikelySameTeam(home, wantedHome);
+          final awayLikely = _isLikelySameTeam(away, wantedAway);
+          if (homeLikely && awayLikely) {
+            score += 2;
+          } else {
+            continue;
+          }
+        }
+
+        final rowKickoff = _readString(row, const ['starting_at', 'starting_at_timestamp']);
+        final parsedKickoff = rowKickoff == null ? null : DateTime.tryParse(rowKickoff);
+        if (parsedKickoff != null) {
+          final diff = parsedKickoff.toUtc().difference(kickoffUtc).inHours.abs();
+          if (diff <= 3) {
+            score += 3;
+          } else if (diff <= 12) {
+            score += 1;
+          }
+        }
+
+        if (score > bestScore) {
+          bestScore = score;
+          best = row;
+        }
+      }
+    }
+
+    return best;
+  }
+
+  (int?, int?) _scoreFromSportmonksRow(Map<String, dynamic> row) {
+    final participants = row['participants'] is List
+        ? row['participants'] as List<dynamic>
+        : const <dynamic>[];
+
+    final homeParticipantId = participants.isNotEmpty
+        ? _readString(participants.first, const ['id'])
+        : null;
+    final awayParticipantId = participants.length > 1
+        ? _readString(participants[1], const ['id'])
+        : null;
+
+    final scores = row['scores'] is List
+        ? row['scores'] as List<dynamic>
+        : const <dynamic>[];
+
+    int? homeScore;
+    int? awayScore;
+    int bestHomePriority = -1;
+    int bestAwayPriority = -1;
+
+    for (final item in scores) {
+      if (item is! Map<String, dynamic>) {
+        continue;
+      }
+
+      final value = _readInt(item, const ['goals', 'score']);
+      if (value == null) {
+        continue;
+      }
+
+      final desc =
+          (_readString(item, const ['description', 'type', 'name']) ?? '')
+              .toLowerCase();
+      final participantId = _readString(item, const ['participant_id']);
+      final priority = _scorePriority(desc, item);
+
+      final participantRole = _resolveParticipantRole(
+        item,
+        participantId: participantId,
+        homeParticipantId: homeParticipantId,
+        awayParticipantId: awayParticipantId,
+      );
+
+      if (participantRole == 'home' ||
+          desc.contains('home') ||
+          desc.contains('local')) {
+        if (priority >= bestHomePriority) {
+          bestHomePriority = priority;
+          homeScore = value;
+        }
+      } else if (participantRole == 'away' ||
+          desc.contains('away') ||
+          desc.contains('visitor')) {
+        if (priority >= bestAwayPriority) {
+          bestAwayPriority = priority;
+          awayScore = value;
+        }
+      }
+    }
+
+    return (homeScore, awayScore);
+  }
+
+  MatchStatus _statusFromSportmonksRow(
+    Map<String, dynamic> row, {
+    required MatchStatus fallback,
+  }) {
+    final state = row['state'];
+    final statusText =
+        (_readString(state, const ['short_name', 'state', 'name']) ??
+                _readString(row, const ['status']) ??
+                '')
+            .toLowerCase();
+
+    if (statusText.contains('ft') ||
+        statusText.contains('finished') ||
+        statusText.contains('fulltime') ||
+        statusText.contains('full time')) {
+      return MatchStatus.completed;
+    }
+    if (statusText.contains('live') ||
+        statusText.contains('inplay') ||
+        statusText.contains('in play') ||
+        statusText.contains('ht') ||
+        statusText.contains('1h') ||
+        statusText.contains('2h')) {
+      return MatchStatus.live;
+    }
+    if (statusText.contains('postponed') ||
+        statusText.contains('suspended') ||
+        statusText.contains('cancelled')) {
+      return MatchStatus.postponed;
+    }
+
+    return fallback;
+  }
+
+  String? _resolveParticipantRole(
+    Map<String, dynamic> scoreMap, {
+    required String? participantId,
+    required String? homeParticipantId,
+    required String? awayParticipantId,
+  }) {
+    if (participantId != null) {
+      if (participantId == homeParticipantId) return 'home';
+      if (participantId == awayParticipantId) return 'away';
+    }
+
+    final participant = scoreMap['participant'];
+    if (participant is Map<String, dynamic>) {
+      final location =
+          _readString(participant, const ['location', 'type', 'side'])
+              ?.toLowerCase();
+      if (location == 'home' || location == 'local') return 'home';
+      if (location == 'away' || location == 'visitor') return 'away';
+    }
+    return null;
+  }
+
+  int _scorePriority(String description, Map<String, dynamic> scoreMap) {
+    if (description.contains('current') ||
+        description.contains('live') ||
+        description.contains('fulltime') ||
+        description.contains('full time')) {
+      return 3;
+    }
+    if (description.contains('2nd') ||
+        description.contains('second') ||
+        description.contains('1st') ||
+        description.contains('first') ||
+        description.contains('half')) {
+      return 2;
+    }
+
+    final typeId = _readInt(scoreMap, const ['type_id']);
+    if (typeId != null && typeId >= 1500) {
+      return 2;
+    }
+
+    return 1;
+  }
+
+  (String, String)? _extractHomeAwayTeamNames(Map<String, dynamic> row) {
+    final participants = row['participants'] is List
+        ? row['participants'] as List<dynamic>
+        : const <dynamic>[];
+    if (participants.length < 2) {
+      return null;
+    }
+
+    String? home;
+    String? away;
+    for (final p in participants) {
+      if (p is! Map<String, dynamic>) {
+        continue;
+      }
+
+      final name = _readString(p, const ['name']);
+      if (name == null || name.isEmpty) {
+        continue;
+      }
+
+      final meta = p['meta'] is Map<String, dynamic>
+          ? p['meta'] as Map<String, dynamic>
+          : const <String, dynamic>{};
+      final location =
+          (_readString(meta, const ['location']) ?? '').toLowerCase();
+
+      if (location == 'home' || location == 'local') {
+        home = name;
+      } else if (location == 'away' || location == 'visitor') {
+        away = name;
+      }
+    }
+
+    if (home != null && away != null) {
+      return (home, away);
+    }
+
+    final first = _readString(participants[0], const ['name']) ?? '';
+    final second = _readString(participants[1], const ['name']) ?? '';
+    if (first.isEmpty || second.isEmpty) {
+      return null;
+    }
+    return (first, second);
+  }
+
+  bool _isLikelySameTeam(String providerName, String appName) {
+    if (providerName == appName) {
+      return true;
+    }
+    if (providerName.contains(appName) || appName.contains(providerName)) {
+      return true;
+    }
+
+    final providerTokens = providerName
+        .split(' ')
+        .where((t) => t.isNotEmpty && t.length > 2)
+        .toSet();
+    final appTokens = appName
+        .split(' ')
+        .where((t) => t.isNotEmpty && t.length > 2)
+        .toSet();
+    if (providerTokens.isEmpty || appTokens.isEmpty) {
+      return false;
+    }
+
+    final overlap = providerTokens.intersection(appTokens).length;
+    final minSize = providerTokens.length < appTokens.length
+        ? providerTokens.length
+        : appTokens.length;
+    return overlap >= 1 && overlap * 2 >= minSize;
+  }
+
+  String _normalizeTeamName(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('fc', '')
+        .replaceAll('.', '')
+        .replaceAll('&', 'and')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  List<DateTime> _candidateDates(DateTime utcDate) {
+    return [
+      utcDate.subtract(const Duration(days: 1)),
+      utcDate,
+      utcDate.add(const Duration(days: 1)),
+    ];
+  }
+
+  String _formatDate(DateTime value) {
+    final y = value.year.toString().padLeft(4, '0');
+    final m = value.month.toString().padLeft(2, '0');
+    final d = value.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  int? _readInt(dynamic source, List<String> keys) {
+    if (source is! Map<String, dynamic>) {
+      return null;
+    }
+
+    for (final key in keys) {
+      final value = source[key];
+      if (value is int) {
+        return value;
+      }
+      if (value is num) {
+        return value.toInt();
+      }
+      if (value is String) {
+        final parsed = int.tryParse(value);
+        if (parsed != null) {
+          return parsed;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  String? _readString(dynamic source, List<String> keys) {
+    if (source is! Map<String, dynamic>) {
+      return null;
+    }
+
+    for (final key in keys) {
+      final value = source[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+      if (value != null) {
+        final asString = value.toString().trim();
+        if (asString.isNotEmpty) {
+          return asString;
+        }
+      }
+    }
+
+    return null;
   }
 
   void _refresh() {
     setState(() {
+      _fixturesCache.remove(_selectedMatchday);
       _fixturesFuture = _loadFixtures();
     });
   }
