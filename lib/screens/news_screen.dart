@@ -28,6 +28,12 @@ class _NewsScreenState extends State<NewsScreen> {
 
   Future<List<_NewsItem>> _loadNews() async {
     try {
+      final listNewsItems = await _loadNewsFromRecentDates();
+      if (listNewsItems.isNotEmpty) {
+        _statusMessage = null;
+        return listNewsItems;
+      }
+
       final fixtureIds = await _resolveFixtureIdsForNews(limit: 6);
       if (fixtureIds.isEmpty) {
         _statusMessage =
@@ -63,10 +69,47 @@ class _NewsScreenState extends State<NewsScreen> {
       _statusMessage = null;
       return items;
     } catch (e) {
-      _statusMessage =
-          'News needs a SPORTMONKS_API_TOKEN in dart_defines.local.json';
+      final message = e.toString();
+      if (message.contains('403') || message.contains('Forbidden')) {
+        _statusMessage =
+            'SportMonks news is not available for this API token/plan.';
+        return const <_NewsItem>[];
+      }
+      if (message.contains('Missing SPORTMONKS_API_TOKEN')) {
+        _statusMessage =
+            'News needs a SPORTMONKS_API_TOKEN in dart_defines.local.json';
+      } else {
+        _statusMessage =
+            'Unable to load SportMonks news right now. Please try again.';
+      }
       return const <_NewsItem>[];
     }
+  }
+
+  Future<List<_NewsItem>> _loadNewsFromRecentDates() async {
+    final items = <_NewsItem>[];
+    final now = DateTime.now().toUtc();
+
+    for (var offset = 0; offset <= 2; offset++) {
+      final date = _formatDate(now.subtract(Duration(days: offset)));
+      try {
+        final response = await _sportmonksService.getFixturesNewsByDate(date);
+        final rows = response['data'] is List
+            ? response['data'] as List<dynamic>
+            : const <dynamic>[];
+
+        for (final row in rows) {
+          if (row is! Map<String, dynamic>) {
+            continue;
+          }
+          items.addAll(_extractNewsItemsFromFixture(row));
+        }
+      } catch (_) {
+        // Continue with other dates/strategies if a single date request fails.
+      }
+    }
+
+    return items;
   }
 
   Future<List<int>> _resolveFixtureIdsForNews({int limit = 6}) async {
@@ -134,26 +177,33 @@ class _NewsScreenState extends State<NewsScreen> {
         ? response['data'] as Map<String, dynamic>
         : const <String, dynamic>{};
 
+    return _extractNewsItemsFromFixture(data);
+  }
+
+  List<_NewsItem> _extractNewsItemsFromFixture(Map<String, dynamic> data) {
+
     final homeName = _teamNameFromIndex(data, 0);
     final awayName = _teamNameFromIndex(data, 1);
     final fixtureTitle = '$homeName vs $awayName';
 
     final items = <_NewsItem>[];
 
-    final prematchNews = data['prematchNews'] is List
-        ? data['prematchNews'] as List<dynamic>
-        : const <dynamic>[];
-    final postmatchNews = data['postmatchNews'] is List
-        ? data['postmatchNews'] as List<dynamic>
-        : const <dynamic>[];
+    final prematchNews = _listFromAnyKey(data, const [
+      'prematchNews',
+      'prematchnews',
+      'pre_match_news',
+    ]);
+    final postmatchNews = _listFromAnyKey(data, const [
+      'postmatchNews',
+      'postmatchnews',
+      'post_match_news',
+    ]);
 
     for (final block in [...prematchNews, ...postmatchNews]) {
       final blockMap = block is Map<String, dynamic>
           ? block
           : const <String, dynamic>{};
-      final lines = blockMap['lines'] is List
-          ? blockMap['lines'] as List<dynamic>
-          : const <dynamic>[];
+        final lines = _listFromAnyKey(blockMap, const ['lines', 'line']);
 
       for (final line in lines) {
         if (line is! Map<String, dynamic>) {
@@ -211,6 +261,16 @@ class _NewsScreenState extends State<NewsScreen> {
     }
 
     return items;
+  }
+
+  List<dynamic> _listFromAnyKey(Map<String, dynamic> source, List<String> keys) {
+    for (final key in keys) {
+      final value = source[key];
+      if (value is List) {
+        return value;
+      }
+    }
+    return const <dynamic>[];
   }
 
   List<_NewsItem> _extractEventNewsItems(Map<String, dynamic> response) {

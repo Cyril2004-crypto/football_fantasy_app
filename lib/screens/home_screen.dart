@@ -1540,50 +1540,60 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
         title: const Text(AppStrings.fixtures),
         backgroundColor: AppColors.primary,
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Row(
-              children: [
-                Text(
-                  'Matchweek',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    initialValue: _selectedMatchday,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.pageGradient),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_month, color: AppColors.primary),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Matchweek',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    items: List.generate(
-                      38,
-                      (index) => DropdownMenuItem<int>(
-                        value: index + 1,
-                        child: Text('Week ${index + 1}'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          initialValue: _selectedMatchday,
+                          decoration: const InputDecoration(
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          items: List.generate(
+                            38,
+                            (index) => DropdownMenuItem<int>(
+                              value: index + 1,
+                              child: Text('Week ${index + 1}'),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() {
+                              _selectedMatchday = value;
+                              _fixturesFuture = _loadFixtures();
+                            });
+                          },
+                        ),
                       ),
-                    ),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() {
-                        _selectedMatchday = value;
-                        _fixturesFuture = _loadFixtures();
-                      });
-                    },
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-          Expanded(
-            child: FutureBuilder<List<Match>>(
-              future: _fixturesFuture,
-              builder: (context, snapshot) {
+            Expanded(
+              child: FutureBuilder<List<Match>>(
+                future: _fixturesFuture,
+                builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -1643,24 +1653,37 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final match = fixtures[index];
+                      final scoreText = (match.homeScore != null && match.awayScore != null)
+                          ? '${match.homeScore} - ${match.awayScore}'
+                          : 'vs';
                       return Card(
                         child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                            child: const Icon(Icons.sports_soccer, color: AppColors.primary),
+                          ),
                           title: Text(
                             '${match.homeTeamName} vs ${match.awayTeamName}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           subtitle: Text(
                             '${match.kickoffTime.toLocal()}'.split('.').first,
                           ),
-                          trailing:
-                              (match.homeScore != null &&
-                                  match.awayScore != null)
-                              ? Text('${match.homeScore} - ${match.awayScore}')
-                              : const Text('vs'),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.mutedLavender,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              scoreText,
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    FixtureDetailsScreen(match: match),
+                                builder: (_) => FixtureDetailsScreen(match: match),
                               ),
                             );
                           },
@@ -1674,7 +1697,8 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
 

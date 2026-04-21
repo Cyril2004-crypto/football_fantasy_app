@@ -56,6 +56,17 @@ class SportmonksService {
     );
   }
 
+  Future<Map<String, dynamic>> getFixturesNewsByDate(
+    String date, {
+    String? apiToken,
+  }) async {
+    final resolvedToken = _resolveToken(apiToken);
+    return _getWithToken(
+      ApiEndpoints.sportmonksFixturesNewsByDate(date),
+      resolvedToken,
+    );
+  }
+
   Future<Map<String, dynamic>> getFixtureXgMatch(
     int fixtureId, {
     String? apiToken,

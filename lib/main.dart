@@ -157,18 +157,84 @@ class MyApp extends StatelessWidget {
             seedColor: AppColors.primary,
             primary: AppColors.primary,
             secondary: AppColors.secondary,
+            tertiary: AppColors.tertiary,
+            surface: AppColors.surface,
           ),
           appBarTheme: const AppBarTheme(
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.textLight,
             elevation: 0,
+            centerTitle: false,
           ),
           scaffoldBackgroundColor: AppColors.background,
           cardTheme: CardThemeData(
-            elevation: 2,
+            color: AppColors.cardBackground,
+            elevation: 1,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(18),
             ),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.divider),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.divider),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.4,
+              ),
+            ),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+            ),
+          ),
+          outlinedButtonTheme: OutlinedButtonThemeData(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary, width: 1.2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            ),
+          ),
+          chipTheme: ChipThemeData(
+            backgroundColor: AppColors.mutedLavender,
+            selectedColor: AppColors.primary,
+            secondarySelectedColor: AppColors.primary,
+            labelStyle: const TextStyle(color: AppColors.textPrimary),
+            secondaryLabelStyle: const TextStyle(color: Colors.white),
+            side: const BorderSide(color: AppColors.divider),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+          navigationBarTheme: NavigationBarThemeData(
+            indicatorColor: AppColors.mutedLavender,
+            labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((
+              states,
+            ) {
+              final isSelected = states.contains(WidgetState.selected);
+              return TextStyle(
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              );
+            }),
           ),
         ),
         home: Consumer<AuthProvider>(

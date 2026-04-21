@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/player.dart';
 import '../providers/team_provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
@@ -32,54 +33,281 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<TeamProvider>(
-      builder: (context, teamProvider, _) {
-        if (teamProvider.isLoading) {
-          return const LoadingIndicator(message: 'Loading team...');
-        }
+    return Container(
+      decoration: const BoxDecoration(gradient: AppColors.pageGradient),
+      child: Consumer<TeamProvider>(
+        builder: (context, teamProvider, _) {
+          if (teamProvider.isLoading) {
+            return const LoadingIndicator(message: 'Loading team...');
+          }
 
-        if (!teamProvider.hasTeam) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.sports_soccer,
-                  size: 80,
-                  color: AppColors.primary.withValues(alpha: 0.5),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No Team Yet',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Create your fantasy team to get started',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+          if (!teamProvider.hasTeam) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.sports_soccer,
+                    size: 80,
+                    color: AppColors.primary.withValues(alpha: 0.5),
                   ),
-                ),
-                const SizedBox(height: 32),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No Team Yet',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Create your fantasy team to get started',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Column(
+                      children: [
+                        CustomButton(
+                          text: AppStrings.selectTeam,
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const PickTeamScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: null,
+                          icon: const Icon(Icons.analytics_outlined),
+                          label: const Text('Analytics requires a team'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final team = teamProvider.team!;
+
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                // Team Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
+                    ),
+                  ),
                   child: Column(
                     children: [
+                      Text(
+                        team.name,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: AppColors.textLight,
+                              fontWeight: FontWeight.bold,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _StatCard(
+                            label: 'Total Points',
+                            value: CurrencyFormatter.formatPoints(
+                              team.totalPoints,
+                            ),
+                            color: AppColors.secondary,
+                          ),
+                          _StatCard(
+                            label: 'Gameweek Points',
+                            value: CurrencyFormatter.formatPoints(
+                              team.gameweekPoints,
+                            ),
+                            color: AppColors.secondary,
+                            onTap: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      GameweekPointsScreen(team: team),
+                                ),
+                              );
+                              if (context.mounted) {
+                                await context.read<TeamProvider>().loadMyTeam();
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _StatCard(
+                            label: 'Squad Value',
+                            value: CurrencyFormatter.formatBudget(
+                              team.players.fold(0.0, (sum, p) => sum + p.price),
+                            ),
+                            color: AppColors.secondary,
+                          ),
+                          _StatCard(
+                            label: 'Bank',
+                            value: CurrencyFormatter.formatBudget(
+                              team.remainingBudget,
+                            ),
+                            color: AppColors.secondary,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Action Buttons
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       CustomButton(
-                        text: AppStrings.selectTeam,
+                        text: AppStrings.transfers,
                         onPressed: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => const PickTeamScreen(),
+                              builder: (_) => const TransfersScreen(),
+                            ),
+                          );
+                        },
+                        backgroundColor: AppColors.accent,
+                      ),
+                      const SizedBox(height: 12),
+                      CustomButton(
+                        text: 'View Team',
+                        onPressed: () {
+                          // Show team composition
+                          _showTeamComposition(context, team);
+                        },
+                        backgroundColor: AppColors.secondary,
+                        textColor: AppColors.textPrimary,
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.analytics_outlined),
+                        label: const Text('Open Team Analytics'),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => TeamAnalyticsScreen(team: team),
                             ),
                           );
                         },
                       ),
+                    ],
+                  ),
+                ),
+                // Leagues Section
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your Leagues',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
                       const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: null,
-                        icon: const Icon(Icons.analytics_outlined),
-                        label: const Text('Analytics requires a team'),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.emoji_events,
+                                  color: AppColors.primary,
+                                ),
+                                title: const Text('Global League'),
+                                subtitle: const Text('15,342 players'),
+                                trailing: const Text('Rank: 2,543'),
+                              ),
+                              const Divider(),
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.group,
+                                  color: AppColors.primary,
+                                ),
+                                title: const Text('Friends League'),
+                                subtitle: const Text('8 players'),
+                                trailing: const Text('Rank: 3'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: _buildAvailabilityCard(team.players),
+                    ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              child: const Text(AppStrings.createLeague),
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const CreateLeagueScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const JoinLeagueScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text(AppStrings.joinLeague),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Squad Details
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Squad (${team.players.length})',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 12),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: _buildPlayersByPosition(team.players),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -87,228 +315,163 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
               ],
             ),
           );
-        }
+        },
+      ),
+    );
+  }
 
-        final team = teamProvider.team!;
+  Widget _buildAvailabilityCard(List<Player> players) {
+    final injuredPlayers = players.where((p) => p.isInjured).toList();
+    final suspendedPlayers = players.where((p) => p.isSuspended).toList();
 
-        return SingleChildScrollView(
-          child: Column(
-            children: [
-              // Team Header
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.health_and_safety, color: AppColors.accent),
+                const SizedBox(width: 8),
+                Text(
+                  'Injuries & Suspensions',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                child: Column(
-                  children: [
-                    Text(
-                      team.name,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            color: AppColors.textLight,
-                            fontWeight: FontWeight.bold,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _StatCard(
-                          label: 'Total Points',
-                          value: CurrencyFormatter.formatPoints(
-                            team.totalPoints,
-                          ),
-                          color: AppColors.secondary,
-                        ),
-                        _StatCard(
-                          label: 'Gameweek Points',
-                          value: CurrencyFormatter.formatPoints(
-                            team.gameweekPoints,
-                          ),
-                          color: AppColors.secondary,
-                          onTap: () async {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    GameweekPointsScreen(team: team),
-                              ),
-                            );
-                            if (context.mounted) {
-                              await context.read<TeamProvider>().loadMyTeam();
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _StatCard(
-                          label: 'Squad Value',
-                          value: CurrencyFormatter.formatBudget(
-                            team.players.fold(0.0, (sum, p) => sum + p.price),
-                          ),
-                          color: AppColors.secondary,
-                        ),
-                        _StatCard(
-                          label: 'Bank',
-                          value: CurrencyFormatter.formatBudget(
-                            team.remainingBudget,
-                          ),
-                          color: AppColors.secondary,
-                        ),
-                      ],
-                    ),
-                  ],
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _availabilityPill(
+                  'Injured',
+                  injuredPlayers.length.toString(),
+                  AppColors.error,
                 ),
-              ),
-              // Action Buttons
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    CustomButton(
-                      text: AppStrings.transfers,
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const TransfersScreen(),
-                          ),
-                        );
-                      },
-                      backgroundColor: AppColors.accent,
-                    ),
-                    const SizedBox(height: 12),
-                    CustomButton(
-                      text: 'View Team',
-                      onPressed: () {
-                        // Show team composition
-                        _showTeamComposition(context, team);
-                      },
-                      backgroundColor: AppColors.secondary,
-                      textColor: AppColors.textPrimary,
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.analytics_outlined),
-                      label: const Text('Open Team Analytics'),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => TeamAnalyticsScreen(team: team),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                _availabilityPill(
+                  'Suspended',
+                  suspendedPlayers.length.toString(),
+                  AppColors.warning,
                 ),
-              ),
-              // Leagues Section
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Your Leagues',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            ListTile(
-                              leading: const Icon(
-                                Icons.emoji_events,
-                                color: AppColors.primary,
-                              ),
-                              title: const Text('Global League'),
-                              subtitle: const Text('15,342 players'),
-                              trailing: const Text('Rank: 2,543'),
-                            ),
-                            const Divider(),
-                            ListTile(
-                              leading: const Icon(
-                                Icons.group,
-                                color: AppColors.primary,
-                              ),
-                              title: const Text('Friends League'),
-                              subtitle: const Text('8 players'),
-                              trailing: const Text('Rank: 3'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            child: const Text(AppStrings.createLeague),
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const CreateLeagueScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const JoinLeagueScreen(),
-                                ),
-                              );
-                            },
-                            child: const Text(AppStrings.joinLeague),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (injuredPlayers.isEmpty && suspendedPlayers.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.mutedMint,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              ),
-              // Squad Details
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Squad (${team.players.length})',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: _buildPlayersByPosition(team.players),
-                        ),
+                child: const Text(
+                  'No active injuries or suspensions detected in your squad.',
+                ),
+              )
+            else
+              Column(
+                children: [
+                  if (injuredPlayers.isNotEmpty) ...[
+                    _availabilityGroupTitle('Injured players'),
+                    const SizedBox(height: 8),
+                    ...injuredPlayers.map(
+                      (player) => _availabilityTile(
+                        player,
+                        Icons.healing,
+                        AppColors.error,
+                        'Injured',
                       ),
                     ),
                   ],
-                ),
+                  if (injuredPlayers.isNotEmpty && suspendedPlayers.isNotEmpty)
+                    const SizedBox(height: 12),
+                  if (suspendedPlayers.isNotEmpty) ...[
+                    _availabilityGroupTitle('Suspended players'),
+                    const SizedBox(height: 8),
+                    ...suspendedPlayers.map(
+                      (player) => _availabilityTile(
+                        player,
+                        Icons.gavel,
+                        AppColors.warning,
+                        'Suspended',
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _availabilityPill(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label: $value',
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _availabilityGroupTitle(String text) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: AppColors.textPrimary,
+        ),
+      ),
+    );
+  }
+
+  Widget _availabilityTile(
+    Player player,
+    IconData icon,
+    Color color,
+    String label,
+  ) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: color.withValues(alpha: 0.06),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: color.withValues(alpha: 0.18),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        title: Text(
+          player.name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(player.clubName),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(999),
           ),
-        );
-      },
+          child: Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
     );
   }
 

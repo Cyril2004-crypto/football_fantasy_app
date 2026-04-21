@@ -119,8 +119,40 @@ class PlayerService {
     final seasonAliases = AppConfig.currentFootballSeasonAliases;
     final totalsByPlayerId = <int, int>{};
     final latestGwPointsByPlayerId = <int, int>{};
+    final injuredPlayerIds = <int>{};
+    final suspendedPlayerIds = <int>{};
 
     if (internalPlayerIds.isNotEmpty) {
+      final injuriesRows = await _client
+          .from('fd_player_injuries')
+          .select('player_id, status')
+          .inFilter('season', seasonAliases)
+          .inFilter('player_id', internalPlayerIds);
+
+      for (final rawRow in injuriesRows as List<dynamic>) {
+        final row = rawRow as Map<String, dynamic>;
+        final playerId = (row['player_id'] as num?)?.toInt();
+        final status = row['status']?.toString().toLowerCase() ?? '';
+        if (playerId != null && status.contains('injur')) {
+          injuredPlayerIds.add(playerId);
+        }
+      }
+
+      final suspensionsRows = await _client
+          .from('fd_player_suspensions')
+          .select('player_id, matches_remaining')
+          .inFilter('season', seasonAliases)
+          .inFilter('player_id', internalPlayerIds);
+
+      for (final rawRow in suspensionsRows as List<dynamic>) {
+        final row = rawRow as Map<String, dynamic>;
+        final playerId = (row['player_id'] as num?)?.toInt();
+        final matchesRemaining = (row['matches_remaining'] as num?)?.toInt() ?? 0;
+        if (playerId != null && matchesRemaining > 0) {
+          suspendedPlayerIds.add(playerId);
+        }
+      }
+
       final latestGwRows = await _client
           .from('fd_player_gameweek_points')
           .select('gameweek')
@@ -183,6 +215,9 @@ class PlayerService {
             ? 0
             : (latestGwPointsByPlayerId[internalPlayerId] ?? 0),
         nationality: data['nationality'] as String? ?? '',
+        isInjured: internalPlayerId != null && injuredPlayerIds.contains(internalPlayerId),
+        isSuspended:
+            internalPlayerId != null && suspendedPlayerIds.contains(internalPlayerId),
         form: 0.0,
       );
     }).toList();

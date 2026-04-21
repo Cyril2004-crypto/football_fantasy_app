@@ -228,179 +228,190 @@ class _PickTeamScreenState extends State<PickTeamScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.selectTeam)),
-      body: Consumer<PlayerProvider>(
-        builder: (context, playerProvider, _) {
-          if (playerProvider.isLoading) {
-            return const LoadingIndicator(message: 'Loading players...');
-          }
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.pageGradient),
+        child: Consumer<PlayerProvider>(
+          builder: (context, playerProvider, _) {
+            if (playerProvider.isLoading) {
+              return const LoadingIndicator(message: 'Loading players...');
+            }
 
-          if (playerProvider.errorMessage != null) {
-            return AppErrorWidget(
-              message: playerProvider.errorMessage ?? 'Error loading players',
-              onRetry: () => playerProvider.loadAllPlayers(),
-            );
-          }
+            if (playerProvider.errorMessage != null) {
+              return AppErrorWidget(
+                message: playerProvider.errorMessage ?? 'Error loading players',
+                onRetry: () => playerProvider.loadAllPlayers(),
+              );
+            }
 
-          return Column(
-            children: [
-              // Team Info Summary
-              Container(
-                padding: const EdgeInsets.all(16),
-                color: AppColors.primary,
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Squad: ${_selectedPlayers.length}/${AppConfig.maxPlayersPerTeam}',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(color: AppColors.textLight),
-                        ),
-                        Text(
-                          'Budget: ${CurrencyFormatter.formatBudget(_remainingBudget)}',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: _remainingBudget < 0
-                                    ? AppColors.error
-                                    : AppColors.secondary,
-                              ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    _TeamPositionIndicator(selectedPlayers: _selectedPlayers),
-                  ],
-                ),
-              ),
-              // Team Name Input
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: TextField(
-                  controller: _teamNameController,
-                  decoration: InputDecoration(
-                    labelText: AppStrings.teamName,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    prefixIcon: const Icon(Icons.sports_soccer),
-                  ),
-                ),
-              ),
-              // Position Filter Tabs
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
+            return Column(
+              children: [
+                // Team Info Summary
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: AppColors.primary,
+                  child: Column(
                     children: [
-                      _PositionFilterChip(
-                        label: 'All',
-                        onTap: () => setState(() => _selectedPosition = ''),
-                        isSelected: _selectedPosition.isEmpty,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Squad: ${_selectedPlayers.length}/${AppConfig.maxPlayersPerTeam}',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: AppColors.textLight),
+                          ),
+                          Text(
+                            'Budget: ${CurrencyFormatter.formatBudget(_remainingBudget)}',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  color: _remainingBudget < 0
+                                      ? AppColors.error
+                                      : AppColors.secondary,
+                                ),
+                          ),
+                        ],
                       ),
-                      _PositionFilterChip(
-                        label: 'GK',
-                        onTap: () =>
-                            setState(() => _selectedPosition = 'goalkeeper'),
-                        isSelected: _selectedPosition == 'goalkeeper',
-                      ),
-                      _PositionFilterChip(
-                        label: 'DEF',
-                        onTap: () =>
-                            setState(() => _selectedPosition = 'defender'),
-                        isSelected: _selectedPosition == 'defender',
-                      ),
-                      _PositionFilterChip(
-                        label: 'MID',
-                        onTap: () =>
-                            setState(() => _selectedPosition = 'midfielder'),
-                        isSelected: _selectedPosition == 'midfielder',
-                      ),
-                      _PositionFilterChip(
-                        label: 'FWD',
-                        onTap: () =>
-                            setState(() => _selectedPosition = 'forward'),
-                        isSelected: _selectedPosition == 'forward',
-                      ),
+                      const SizedBox(height: 8),
+                      _TeamPositionIndicator(selectedPlayers: _selectedPlayers),
                     ],
                   ),
                 ),
-              ),
-              // Players List
-              Expanded(
-                child: ListView.builder(
-                  itemCount: playerProvider.players.length,
-                  itemBuilder: (context, index) {
-                    final player = playerProvider.players[index];
-
-                    if (_selectedPosition.isNotEmpty &&
-                        !player.position.toString().contains(
-                          _selectedPosition,
-                        )) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final isSelected = _selectedPlayers.any(
-                      (p) => p.id == player.id,
-                    );
-
-                    return _PlayerCard(
-                      player: player,
-                      isSelected: isSelected,
-                      isDisabled:
-                          !isSelected &&
-                          (_remainingBudget < player.price ||
-                              _selectedPlayers.length >=
-                                  AppConfig.maxPlayersPerTeam ||
-                              _selectedPlayers
-                                      .where(
-                                        (p) => p.position == player.position,
-                                      )
-                                      .length >=
-                                  _getMaxPlayersForPosition(player.position)),
-                      onTap: () => _togglePlayerSelection(player),
-                    );
-                  },
-                ),
-              ),
-              // Bottom Action Buttons
-              Container(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _autoFillTeam,
-                            child: const Text(AppStrings.autoFill),
+                // Team Name Input
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: TextField(
+                        controller: _teamNameController,
+                        decoration: InputDecoration(
+                          labelText: AppStrings.teamName,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
+                          prefixIcon: const Icon(Icons.sports_soccer),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () =>
-                                setState(() => _selectedPlayers.clear()),
-                            child: const Text(AppStrings.clearTeam),
-                          ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Position Filter Tabs
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _PositionFilterChip(
+                          label: 'All',
+                          onTap: () => setState(() => _selectedPosition = ''),
+                          isSelected: _selectedPosition.isEmpty,
+                        ),
+                        _PositionFilterChip(
+                          label: 'GK',
+                          onTap: () =>
+                              setState(() => _selectedPosition = 'goalkeeper'),
+                          isSelected: _selectedPosition == 'goalkeeper',
+                        ),
+                        _PositionFilterChip(
+                          label: 'DEF',
+                          onTap: () =>
+                              setState(() => _selectedPosition = 'defender'),
+                          isSelected: _selectedPosition == 'defender',
+                        ),
+                        _PositionFilterChip(
+                          label: 'MID',
+                          onTap: () =>
+                              setState(() => _selectedPosition = 'midfielder'),
+                          isSelected: _selectedPosition == 'midfielder',
+                        ),
+                        _PositionFilterChip(
+                          label: 'FWD',
+                          onTap: () =>
+                              setState(() => _selectedPosition = 'forward'),
+                          isSelected: _selectedPosition == 'forward',
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    CustomButton(
-                      text: AppStrings.saveTeam,
-                      onPressed: _isTeamValid && !_isLoading
-                          ? _createTeam
-                          : null,
-                      isLoading: _isLoading,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+                // Players List
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: playerProvider.players.length,
+                    itemBuilder: (context, index) {
+                      final player = playerProvider.players[index];
+
+                      if (_selectedPosition.isNotEmpty &&
+                          !player.position.toString().contains(
+                            _selectedPosition,
+                          )) {
+                        return const SizedBox.shrink();
+                      }
+
+                      final isSelected = _selectedPlayers.any(
+                        (p) => p.id == player.id,
+                      );
+
+                      return _PlayerCard(
+                        player: player,
+                        isSelected: isSelected,
+                        isDisabled:
+                            !isSelected &&
+                            (_remainingBudget < player.price ||
+                                _selectedPlayers.length >=
+                                    AppConfig.maxPlayersPerTeam ||
+                                _selectedPlayers
+                                        .where(
+                                          (p) => p.position == player.position,
+                                        )
+                                        .length >=
+                                    _getMaxPlayersForPosition(player.position)),
+                        onTap: () => _togglePlayerSelection(player),
+                      );
+                    },
+                  ),
+                ),
+                // Bottom Action Buttons
+                Card(
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _autoFillTeam,
+                                child: const Text(AppStrings.autoFill),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () =>
+                                    setState(() => _selectedPlayers.clear()),
+                                child: const Text(AppStrings.clearTeam),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        CustomButton(
+                          text: AppStrings.saveTeam,
+                          onPressed: _isTeamValid && !_isLoading
+                              ? _createTeam
+                              : null,
+                          isLoading: _isLoading,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

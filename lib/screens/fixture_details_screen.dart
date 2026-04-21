@@ -20,20 +20,26 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
     ApiService(AuthService()),
   );
 
-  late final Future<_FixtureStatsData> _statsFuture;
+  late final Future<_FixtureDetailsData> _detailsFuture;
 
   @override
   void initState() {
     super.initState();
-    _statsFuture = _loadStats();
+    _detailsFuture = _loadFixtureDetails();
   }
 
-  Future<_FixtureStatsData> _loadStats() async {
+  Future<_FixtureDetailsData> _loadFixtureDetails() async {
     try {
       final fixtureId = await _resolveSportmonksFixtureId();
       if (fixtureId == null) {
-        return const _FixtureStatsData(
-          statusMessage: 'Unable to resolve this fixture in the stats provider.',
+        return const _FixtureDetailsData(
+          stats: _FixtureStatsData(
+            statusMessage:
+                'Unable to resolve this fixture in the stats provider.',
+          ),
+          timeline: <_FixtureEventItem>[],
+          homeLineup: <_LineupPlayer>[],
+          awayLineup: <_LineupPlayer>[],
         );
       }
 
@@ -42,25 +48,39 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
           ? centre['data'] as Map<String, dynamic>
           : const <String, dynamic>{};
 
-      final statistics = data['statistics'] is List
-          ? data['statistics'] as List<dynamic>
-          : const <dynamic>[];
-      final fromCentre = _statsFromList(statistics);
-      if (fromCentre.hasAny) {
-        return fromCentre;
+      var stats = _statsFromList(
+        data['statistics'] is List
+            ? data['statistics'] as List<dynamic>
+            : const <dynamic>[],
+      );
+
+      if (!stats.hasAny) {
+        final fromDateFixtures = await _loadStatsFromDateFixtures();
+        if (fromDateFixtures.hasAny) {
+          stats = fromDateFixtures;
+        } else {
+          stats = const _FixtureStatsData(
+            statusMessage:
+                'No detailed statistics returned yet for this fixture.',
+          );
+        }
       }
 
-      final fromDateFixtures = await _loadStatsFromDateFixtures();
-      if (fromDateFixtures.hasAny) {
-        return fromDateFixtures;
-      }
-
-      return const _FixtureStatsData(
-        statusMessage: 'No detailed statistics returned yet for this fixture.',
+      final parsedLineups = _extractLineups(data);
+      return _FixtureDetailsData(
+        stats: stats,
+        timeline: _extractTimeline(data),
+        homeLineup: parsedLineups.$1,
+        awayLineup: parsedLineups.$2,
       );
     } catch (_) {
-      return const _FixtureStatsData(
-        statusMessage: 'Could not load match stats right now.',
+      return const _FixtureDetailsData(
+        stats: _FixtureStatsData(
+          statusMessage: 'Could not load match details right now.',
+        ),
+        timeline: <_FixtureEventItem>[],
+        homeLineup: <_LineupPlayer>[],
+        awayLineup: <_LineupPlayer>[],
       );
     }
   }
@@ -116,12 +136,14 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
         continue;
       }
 
-      final type = (_readString(entry['type'], const ['developer_name']) ??
-              _readString(entry['type'], const ['name']) ??
-              '')
-          .toUpperCase();
+      final type =
+          (_readString(entry['type'], const ['developer_name']) ??
+                  _readString(entry['type'], const ['name']) ??
+                  '')
+              .toUpperCase();
 
-      final location = (_readString(entry, const ['location']) ?? '').toLowerCase();
+      final location = (_readString(entry, const ['location']) ?? '')
+          .toLowerCase();
       final value = _readInt(entry['data'], const ['value']);
       if (value == null || location.isEmpty) {
         continue;
@@ -172,6 +194,137 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
       homeShotsOffTarget: homeShotsOffTarget,
       awayShotsOffTarget: awayShotsOffTarget,
     );
+  }
+
+  List<_FixtureEventItem> _extractTimeline(Map<String, dynamic> data) {
+    final events = data['events'] is List
+        ? data['events'] as List<dynamic>
+        : const <dynamic>[];
+
+    final items = <_FixtureEventItem>[];
+    for (final event in events) {
+      if (event is! Map<String, dynamic>) {
+        continue;
+      }
+
+      final minute = _readInt(event, const ['minute']);
+      final eventType =
+          (_readString(event['type'], const ['name']) ??
+                  _readString(event['type'], const ['developer_name']) ??
+                  'Match event')
+              .replaceAll('_', ' ')
+              .trim();
+      final playerName = _readString(event['player'], const ['name']);
+      final relatedPlayerName = _readString(event['relatedplayer'], const [
+        'name',
+      ]);
+
+      items.add(
+        _FixtureEventItem(
+          minute: minute,
+          type: eventType,
+          playerName: playerName,
+          relatedPlayerName: relatedPlayerName,
+        ),
+      );
+    }
+
+    items.sort((a, b) {
+      final am = a.minute ?? -1;
+      final bm = b.minute ?? -1;
+      return am.compareTo(bm);
+    });
+    return items;
+  }
+
+  (List<_LineupPlayer>, List<_LineupPlayer>) _extractLineups(
+    Map<String, dynamic> data,
+  ) {
+    final participants = data['participants'] is List
+        ? data['participants'] as List<dynamic>
+        : const <dynamic>[];
+
+    String? homeParticipantId;
+    String? awayParticipantId;
+    for (final participant in participants) {
+      if (participant is! Map<String, dynamic>) {
+        continue;
+      }
+      final id = _readString(participant, const ['id']);
+      final location =
+          (_readString(participant['meta'], const ['location']) ?? '')
+              .toLowerCase();
+      if (location == 'home' || location == 'local') {
+        homeParticipantId = id;
+      } else if (location == 'away' || location == 'visitor') {
+        awayParticipantId = id;
+      }
+    }
+
+    final lineups = data['lineups'] is List
+        ? data['lineups'] as List<dynamic>
+        : const <dynamic>[];
+
+    final home = <_LineupPlayer>[];
+    final away = <_LineupPlayer>[];
+
+    for (final raw in lineups) {
+      if (raw is! Map<String, dynamic>) {
+        continue;
+      }
+
+      final playerName =
+          _readString(raw['player'], const ['display_name', 'name']) ??
+          _readString(raw, const ['player_name', 'playerName']);
+      if (playerName == null || playerName.isEmpty) {
+        continue;
+      }
+
+      final position = _readString(raw, const ['position']);
+      final shirtNumber = _readInt(raw, const ['number', 'shirt_number']);
+      final lineupType =
+          (_readString(raw['type'], const ['name']) ??
+                  _readString(raw['type'], const ['developer_name']) ??
+                  '')
+              .toLowerCase();
+      final isStarter =
+          lineupType.contains('lineup') || lineupType.contains('starting');
+
+      final teamId = _readString(raw, const ['team_id', 'participant_id']);
+      final player = _LineupPlayer(
+        name: playerName,
+        position: position,
+        shirtNumber: shirtNumber,
+        isStarter: isStarter,
+      );
+
+      if (teamId != null && teamId == homeParticipantId) {
+        home.add(player);
+      } else if (teamId != null && teamId == awayParticipantId) {
+        away.add(player);
+      } else if (home.length <= away.length) {
+        home.add(player);
+      } else {
+        away.add(player);
+      }
+    }
+
+    int sortLineup(_LineupPlayer a, _LineupPlayer b) {
+      if (a.isStarter != b.isStarter) {
+        return a.isStarter ? -1 : 1;
+      }
+      final an = a.shirtNumber ?? 999;
+      final bn = b.shirtNumber ?? 999;
+      if (an != bn) {
+        return an.compareTo(bn);
+      }
+      return a.name.compareTo(b.name);
+    }
+
+    home.sort(sortLineup);
+    away.sort(sortLineup);
+
+    return (home, away);
   }
 
   Future<int?> _resolveSportmonksFixtureId() async {
@@ -293,8 +446,8 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
       final meta = p['meta'] is Map<String, dynamic>
           ? p['meta'] as Map<String, dynamic>
           : const <String, dynamic>{};
-      final location =
-          (_readString(meta, const ['location']) ?? '').toLowerCase();
+      final location = (_readString(meta, const ['location']) ?? '')
+          .toLowerCase();
 
       if (location == 'home' || location == 'local') {
         home = name;
@@ -408,143 +561,335 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
         title: const Text('Fixture Details'),
         backgroundColor: AppColors.primary,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${match.homeTeamName} vs ${match.awayTeamName}',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.pageGradient),
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Card(
+              color: AppColors.mutedLavender,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${match.homeTeamName} vs ${match.awayTeamName}',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _formatKickoff(localKickoff),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
+                    const SizedBox(height: 8),
+                    Text(
+                      _formatKickoff(localKickoff),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildStatusChip(context, match.status),
-                  if (match.homeScore != null && match.awayScore != null) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                    const SizedBox(height: 12),
+                    _buildStatusChip(context, match.status),
+                    if (match.homeScore != null && match.awayScore != null) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          'Score: ${match.homeScore} - ${match.awayScore}',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Match Info',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
-                      child: Text(
-                        'Score: ${match.homeScore} - ${match.awayScore}',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildInfoRow('Gameweek', '${match.gameweek}'),
+                    _buildInfoRow('Venue', match.venue ?? 'TBD'),
+                    _buildInfoRow('Fixture ID', match.id),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FutureBuilder<_FixtureDetailsData>(
+              future: _detailsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final details =
+                    snapshot.data ??
+                    const _FixtureDetailsData(
+                      stats: _FixtureStatsData(),
+                      timeline: <_FixtureEventItem>[],
+                      homeLineup: <_LineupPlayer>[],
+                      awayLineup: <_LineupPlayer>[],
+                    );
+
+                return Column(
+                  children: [
+                    _buildStatisticsCard(context, details.stats),
+                    const SizedBox(height: 12),
+                    _buildTimelineCard(context, details.timeline),
+                    const SizedBox(height: 12),
+                    _buildLineupsCard(
+                      context,
+                      details.homeLineup,
+                      details.awayLineup,
                     ),
                   ],
-                ],
-              ),
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatisticsCard(BuildContext context, _FixtureStatsData stats) {
+    final hasAnyData = stats.hasAny;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Match Statistics',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            if (!hasAnyData)
+              Text(
+                stats.statusMessage ??
+                    'No statistics available for this fixture yet.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              )
+            else ...[
+              _buildStatLine(
+                'Possession',
+                _formatPercent(stats.homePossession),
+                _formatPercent(stats.awayPossession),
+              ),
+              _buildStatLine(
+                'Total Shots',
+                _formatInt(stats.homeShotsTotal),
+                _formatInt(stats.awayShotsTotal),
+              ),
+              _buildStatLine(
+                'Shots On Target',
+                _formatInt(stats.homeShotsOnTarget),
+                _formatInt(stats.awayShotsOnTarget),
+              ),
+              _buildStatLine(
+                'Shots Off Target',
+                _formatInt(stats.homeShotsOffTarget),
+                _formatInt(stats.awayShotsOffTarget),
+              ),
+              _buildStatLine('Total Shot xG', 'N/A', 'N/A'),
+              const SizedBox(height: 6),
+              Text(
+                'xG is not available on this provider endpoint for this fixture.',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimelineCard(
+    BuildContext context,
+    List<_FixtureEventItem> timeline,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Event Timeline',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            if (timeline.isEmpty)
+              Text(
+                'No event timeline available for this fixture yet.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              )
+            else
+              ...timeline.map((event) => _buildTimelineRow(context, event)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLineupsCard(
+    BuildContext context,
+    List<_LineupPlayer> homeLineup,
+    List<_LineupPlayer> awayLineup,
+  ) {
+    final hasLineups = homeLineup.isNotEmpty || awayLineup.isNotEmpty;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lineups',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            if (!hasLineups)
+              Text(
+                'Lineups are not published yet for this fixture.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              )
+            else
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Match Info',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: _buildLineupColumn(
+                      context,
+                      title: widget.match.homeTeamName,
+                      players: homeLineup,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _buildInfoRow('Gameweek', '${match.gameweek}'),
-                  _buildInfoRow('Venue', match.venue ?? 'TBD'),
-                  _buildInfoRow('Fixture ID', match.id),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildLineupColumn(
+                      context,
+                      title: widget.match.awayTeamName,
+                      players: awayLineup,
+                    ),
+                  ),
                 ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimelineRow(BuildContext context, _FixtureEventItem event) {
+    final minute = event.minute == null ? '-' : '${event.minute}\'';
+    final player = event.playerName ?? 'Unknown player';
+    final related = event.relatedPlayerName == null
+        ? ''
+        : ' (${event.relatedPlayerName})';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 42,
+            child: Text(
+              minute,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: FutureBuilder<_FixtureStatsData>(
-                future: _statsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final stats = snapshot.data ?? const _FixtureStatsData();
-                  final hasAnyData = stats.hasAny;
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Match Statistics',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 10),
-                      if (!hasAnyData)
-                        Text(
-                          stats.statusMessage ??
-                              'No statistics available for this fixture yet.',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AppColors.textSecondary),
-                        )
-                      else ...[
-                        _buildStatLine(
-                          'Possession',
-                          _formatPercent(stats.homePossession),
-                          _formatPercent(stats.awayPossession),
-                        ),
-                        _buildStatLine(
-                          'Total Shots',
-                          _formatInt(stats.homeShotsTotal),
-                          _formatInt(stats.awayShotsTotal),
-                        ),
-                        _buildStatLine(
-                          'Shots On Target',
-                          _formatInt(stats.homeShotsOnTarget),
-                          _formatInt(stats.awayShotsOnTarget),
-                        ),
-                        _buildStatLine(
-                          'Shots Off Target',
-                          _formatInt(stats.homeShotsOffTarget),
-                          _formatInt(stats.awayShotsOffTarget),
-                        ),
-                        _buildStatLine('Total Shot xG', 'N/A', 'N/A'),
-                        const SizedBox(height: 6),
-                        Text(
-                          'xG is not available on this provider endpoint for this fixture.',
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(color: AppColors.textSecondary),
-                        ),
-                      ],
-                    ],
-                  );
-                },
-              ),
+          Expanded(
+            child: Text(
+              '${event.type}: $player$related',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLineupColumn(
+    BuildContext context, {
+    required String title,
+    required List<_LineupPlayer> players,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 8),
+        if (players.isEmpty)
+          Text(
+            'No lineup data',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          )
+        else
+          ...players.map((player) {
+            final number = player.shirtNumber == null
+                ? ''
+                : '#${player.shirtNumber} ';
+            final role = player.isStarter ? '' : ' (Bench)';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                '$number${player.name}$role',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            );
+          }),
+      ],
     );
   }
 
@@ -668,6 +1013,20 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
   }
 }
 
+class _FixtureDetailsData {
+  final _FixtureStatsData stats;
+  final List<_FixtureEventItem> timeline;
+  final List<_LineupPlayer> homeLineup;
+  final List<_LineupPlayer> awayLineup;
+
+  const _FixtureDetailsData({
+    required this.stats,
+    required this.timeline,
+    required this.homeLineup,
+    required this.awayLineup,
+  });
+}
+
 class _FixtureStatsData {
   final int? homePossession;
   final int? awayPossession;
@@ -700,4 +1059,32 @@ class _FixtureStatsData {
       awayShotsOnTarget != null ||
       homeShotsOffTarget != null ||
       awayShotsOffTarget != null;
+}
+
+class _FixtureEventItem {
+  final int? minute;
+  final String type;
+  final String? playerName;
+  final String? relatedPlayerName;
+
+  const _FixtureEventItem({
+    required this.minute,
+    required this.type,
+    required this.playerName,
+    required this.relatedPlayerName,
+  });
+}
+
+class _LineupPlayer {
+  final String name;
+  final String? position;
+  final int? shirtNumber;
+  final bool isStarter;
+
+  const _LineupPlayer({
+    required this.name,
+    required this.position,
+    required this.shirtNumber,
+    required this.isStarter,
+  });
 }

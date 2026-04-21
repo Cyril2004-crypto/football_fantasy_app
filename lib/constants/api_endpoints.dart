@@ -21,6 +21,8 @@ class ApiEndpoints {
       '$sportmonksBaseUrl/fixtures/$fixtureId?include=participants;scores;events.type;events.player;events.relatedplayer;lineups.details.type;statistics.type';
   static String sportmonksFixtureNews(int fixtureId) =>
       '$sportmonksBaseUrl/fixtures/$fixtureId?include=prematchNews.lines;postmatchNews.lines;participants;league;venue;state;scores;events.type';
+  static String sportmonksFixturesNewsByDate(String date) =>
+      '$sportmonksBaseUrl/fixtures/date/$date?include=prematchNews.lines;postmatchNews.lines;participants;league;venue;state;scores;events.type';
   static String sportmonksFixtureXgMatch(int fixtureId) =>
       '$sportmonksBaseUrl/fixtures/$fixtureId/xg?include=participants;lineups.details.type';
   static String sportmonksFixturesByDate(String date) =>
