@@ -233,7 +233,7 @@ void main() {
     },
   );
 
-  testWidgets('gameweek points view renders with injected client', (tester) async {
+  testWidgets('gameweek points view shows recoverable error state', (tester) async {
     final team = _buildTeam();
 
     await tester.pumpWidget(
@@ -248,6 +248,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Gameweek Points'), findsOneWidget);
-    expect(find.textContaining(team.name), findsWidgets);
+    expect(find.text('Could not load gameweek points right now.'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
   });
 }

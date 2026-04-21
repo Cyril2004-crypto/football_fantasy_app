@@ -12,6 +12,18 @@ Use the trusted backend write flow documented in `docs/supabase_option2_setup.md
 
 ## Release Readiness Checklist
 
+Run the bundled hardening checks before each release:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\release_hardening.ps1
+```
+
+Optional fast mode (skip build steps):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\release_hardening.ps1 -SkipWebBuild -SkipApkBuild
+```
+
 - `flutter analyze` returns no issues.
 - `flutter test` passes.
 - Firebase is initialized in the target environment (`firebase_options.dart` and platform config files).

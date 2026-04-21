@@ -22,6 +22,7 @@ class GameweekPointsScreen extends StatefulWidget {
 class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
   int _selectedGameweek = 1;
   late Future<List<_PlayerGameweekBreakdown>> _pointsFuture;
+  late final Map<String, Player> _playersByExternalId;
 
   SupabaseClient get _client {
     if (widget.clientOverride != null) {
@@ -40,6 +41,9 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
   @override
   void initState() {
     super.initState();
+    _playersByExternalId = {
+      for (final player in widget.team.players) player.id: player,
+    };
     _pointsFuture = _loadPlayerPointsForGameweek(_selectedGameweek);
   }
 
@@ -101,9 +105,8 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
       final externalId = externalByInternalId[internalId];
       if (externalId == null) continue;
 
-      final player = widget.team.players.firstWhere(
-        (element) => element.id == externalId,
-      );
+      final player = _playersByExternalId[externalId];
+      if (player == null) continue;
       final fixtureId = (row['fixture_id'] as num?)?.toInt();
       final fixtureTitle = fixtureId == null
           ? 'Unknown fixture'
@@ -250,6 +253,42 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline, size: 48, color: AppColors.primary),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Could not load gameweek points right now.',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Please try again in a moment.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 14),
+                      ElevatedButton.icon(
+                        onPressed: _reloadPoints,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             }
 
             final breakdownByPlayerId = {
