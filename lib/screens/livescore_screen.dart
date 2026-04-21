@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
@@ -80,11 +80,11 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
         : 'Away Team';
 
     final homeParticipantId = participantList.isNotEmpty
-      ? _readString(participantList.first, const ['id'])
-      : null;
+        ? _readString(participantList.first, const ['id'])
+        : null;
     final awayParticipantId = participantList.length > 1
-      ? _readString(participantList[1], const ['id'])
-      : null;
+        ? _readString(participantList[1], const ['id'])
+        : null;
 
     final scores = row['scores'];
     final scoreList = scores is List ? scores : const <dynamic>[];
@@ -203,9 +203,11 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
 
     final participant = scoreMap['participant'];
     if (participant is Map<String, dynamic>) {
-      final location =
-          _readString(participant, const ['location', 'type', 'side'])
-              ?.toLowerCase();
+      final location = _readString(participant, const [
+        'location',
+        'type',
+        'side',
+      ])?.toLowerCase();
       if (location == 'home' || location == 'local') return 'home';
       if (location == 'away' || location == 'visitor') return 'away';
 
@@ -332,8 +334,9 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               itemCount: matches.length + 1,
-              separatorBuilder: (_, index) =>
-                  index == 0 ? const SizedBox(height: 8) : const SizedBox(height: 10),
+              separatorBuilder: (_, index) => index == 0
+                  ? const SizedBox(height: 8)
+                  : const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 if (index == 0) {
                   final updated = _lastUpdatedAt;

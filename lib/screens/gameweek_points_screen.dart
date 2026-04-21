@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/app_colors.dart';
 import '../config/app_config.dart';
@@ -113,8 +113,11 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
           : (fixtureTitlesById[fixtureId] ?? 'Fixture #$fixtureId');
       final events = fixtureId == null
           ? const <_FixtureEventLogItem>[]
-          : eventsByFixtureAndPlayer[_fixturePlayerKey(fixtureId, internalId)] ??
-              const <_FixtureEventLogItem>[];
+          : eventsByFixtureAndPlayer[_fixturePlayerKey(
+                  fixtureId,
+                  internalId,
+                )] ??
+                const <_FixtureEventLogItem>[];
       final fixturePoints = (row['points'] as num?)?.toInt() ?? 0;
 
       breakdownByPlayerId.update(
@@ -184,8 +187,10 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
       final fixtureId = (row['id'] as num?)?.toInt();
       if (fixtureId == null) continue;
 
-      final homeName = teamNamesById[row['home_team_id'].toString()] ?? 'Home Team';
-      final awayName = teamNamesById[row['away_team_id'].toString()] ?? 'Away Team';
+      final homeName =
+          teamNamesById[row['home_team_id'].toString()] ?? 'Home Team';
+      final awayName =
+          teamNamesById[row['away_team_id'].toString()] ?? 'Away Team';
       titlesById[fixtureId] = '$homeName vs $awayName';
     }
 
@@ -231,7 +236,8 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
     return grouped;
   }
 
-  String _fixturePlayerKey(int fixtureId, int playerId) => '$fixtureId:$playerId';
+  String _fixturePlayerKey(int fixtureId, int playerId) =>
+      '$fixtureId:$playerId';
 
   void _reloadPoints() {
     setState(() {
@@ -262,13 +268,16 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.error_outline, size: 48, color: AppColors.primary),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: AppColors.primary,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         'Could not load gameweek points right now.',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 6),
@@ -292,19 +301,20 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
             }
 
             final breakdownByPlayerId = {
-              for (final item in snapshot.data ?? const <_PlayerGameweekBreakdown>[])
+              for (final item
+                  in snapshot.data ?? const <_PlayerGameweekBreakdown>[])
                 item.playerId: item,
             };
             final players = [...widget.team.players]
               ..sort(
-                (a, b) => (breakdownByPlayerId[b.id]?.totalPoints ?? 0).compareTo(
-                  breakdownByPlayerId[a.id]?.totalPoints ?? 0,
-                ),
+                (a, b) => (breakdownByPlayerId[b.id]?.totalPoints ?? 0)
+                    .compareTo(breakdownByPlayerId[a.id]?.totalPoints ?? 0),
               );
 
             final teamGameweekPoints = players.fold<int>(
               0,
-              (sum, player) => sum + (breakdownByPlayerId[player.id]?.totalPoints ?? 0),
+              (sum, player) =>
+                  sum + (breakdownByPlayerId[player.id]?.totalPoints ?? 0),
             );
 
             return Column(
@@ -397,12 +407,17 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
-                                '${breakdown?.totalPoints ?? 0} pts',
+                              '${breakdown?.totalPoints ?? 0} pts',
                               style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                           ),
-                          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          childrenPadding: const EdgeInsets.fromLTRB(
+                            16,
+                            0,
+                            16,
+                            16,
+                          ),
                           children: [
                             if (breakdown == null)
                               Align(
@@ -410,30 +425,40 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
                                 child: Text(
                                   'No gameweek stats stored for this player yet.',
                                   style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(color: AppColors.textSecondary),
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
                                 ),
                               )
                             else
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _FormulaSummary(player: player, breakdown: breakdown),
+                                  _FormulaSummary(
+                                    player: player,
+                                    breakdown: breakdown,
+                                  ),
                                   const SizedBox(height: 12),
                                   Text(
                                     'Fixture log',
-                                    style: Theme.of(context).textTheme.titleSmall
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
                                         ?.copyWith(fontWeight: FontWeight.bold),
                                   ),
                                   const SizedBox(height: 8),
                                   ...breakdown.fixtures.map(
                                     (fixture) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 12),
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
+                                      ),
                                       child: Card(
                                         color: AppColors.surface,
                                         child: Padding(
                                           padding: const EdgeInsets.all(12),
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Row(
                                                 children: [
@@ -444,22 +469,31 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
                                                           .textTheme
                                                           .titleSmall
                                                           ?.copyWith(
-                                                            fontWeight: FontWeight.bold,
+                                                            fontWeight:
+                                                                FontWeight.bold,
                                                           ),
                                                     ),
                                                   ),
                                                   Container(
-                                                    padding: const EdgeInsets.symmetric(
-                                                      horizontal: 10,
-                                                      vertical: 6,
-                                                    ),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 10,
+                                                          vertical: 6,
+                                                        ),
                                                     decoration: BoxDecoration(
-                                                      color: AppColors.mutedMint,
-                                                      borderRadius: BorderRadius.circular(999),
+                                                      color:
+                                                          AppColors.mutedMint,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            999,
+                                                          ),
                                                     ),
                                                     child: Text(
                                                       '${fixture.points} pts',
-                                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
                                                     ),
                                                   ),
                                                 ],
@@ -469,44 +503,90 @@ class _GameweekPointsScreenState extends State<GameweekPointsScreen> {
                                                 spacing: 8,
                                                 runSpacing: 8,
                                                 children: [
-                                                  _BreakdownChip('Minutes', '${fixture.minutes}'),
-                                                  _BreakdownChip('Goals', '${fixture.goals}'),
-                                                  _BreakdownChip('Assists', '${fixture.assists}'),
-                                                  _BreakdownChip('Clean Sheet', fixture.cleanSheet ? 'Yes' : 'No'),
-                                                  _BreakdownChip('Yellow Cards', '${fixture.yellowCards}'),
-                                                  _BreakdownChip('Red Cards', '${fixture.redCards}'),
-                                                  _BreakdownChip('Bonus', '${fixture.bonus}'),
+                                                  _BreakdownChip(
+                                                    'Minutes',
+                                                    '${fixture.minutes}',
+                                                  ),
+                                                  _BreakdownChip(
+                                                    'Goals',
+                                                    '${fixture.goals}',
+                                                  ),
+                                                  _BreakdownChip(
+                                                    'Assists',
+                                                    '${fixture.assists}',
+                                                  ),
+                                                  _BreakdownChip(
+                                                    'Clean Sheet',
+                                                    fixture.cleanSheet
+                                                        ? 'Yes'
+                                                        : 'No',
+                                                  ),
+                                                  _BreakdownChip(
+                                                    'Yellow Cards',
+                                                    '${fixture.yellowCards}',
+                                                  ),
+                                                  _BreakdownChip(
+                                                    'Red Cards',
+                                                    '${fixture.redCards}',
+                                                  ),
+                                                  _BreakdownChip(
+                                                    'Bonus',
+                                                    '${fixture.bonus}',
+                                                  ),
                                                 ],
                                               ),
                                               const SizedBox(height: 10),
                                               if (fixture.events.isEmpty)
                                                 Text(
                                                   'No match events recorded for this player in this fixture.',
-                                                  style: Theme.of(context).textTheme.bodySmall
-                                                      ?.copyWith(color: AppColors.textSecondary),
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color: AppColors
+                                                            .textSecondary,
+                                                      ),
                                                 )
                                               else ...[
                                                 Text(
                                                   'Events',
-                                                  style: Theme.of(context).textTheme.labelLarge
-                                                      ?.copyWith(fontWeight: FontWeight.bold),
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .labelLarge
+                                                      ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
                                                 ),
                                                 const SizedBox(height: 8),
                                                 ...fixture.events.map(
                                                   (event) => Padding(
-                                                    padding: const EdgeInsets.only(bottom: 6),
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          bottom: 6,
+                                                        ),
                                                     child: Row(
                                                       children: [
                                                         Icon(
-                                                          _eventIcon(event.eventType),
+                                                          _eventIcon(
+                                                            event.eventType,
+                                                          ),
                                                           size: 16,
-                                                          color: AppColors.primary,
+                                                          color:
+                                                              AppColors.primary,
                                                         ),
-                                                        const SizedBox(width: 8),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
                                                         Expanded(
                                                           child: Text(
                                                             '${event.minute ?? 0}\' - ${event.description ?? event.eventType}',
-                                                            style: Theme.of(context).textTheme.bodySmall,
+                                                            style:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .textTheme
+                                                                    .bodySmall,
                                                           ),
                                                         ),
                                                       ],
@@ -555,14 +635,20 @@ class _PlayerGameweekBreakdown {
   final Player player;
   final List<_FixtureGameweekContribution> fixtures;
 
-  int get totalMinutes => fixtures.fold<int>(0, (sum, fixture) => sum + fixture.minutes);
-  int get totalGoals => fixtures.fold<int>(0, (sum, fixture) => sum + fixture.goals);
-  int get totalAssists => fixtures.fold<int>(0, (sum, fixture) => sum + fixture.assists);
+  int get totalMinutes =>
+      fixtures.fold<int>(0, (sum, fixture) => sum + fixture.minutes);
+  int get totalGoals =>
+      fixtures.fold<int>(0, (sum, fixture) => sum + fixture.goals);
+  int get totalAssists =>
+      fixtures.fold<int>(0, (sum, fixture) => sum + fixture.assists);
   bool get cleanSheet => fixtures.any((fixture) => fixture.cleanSheet);
-  int get yellowCards => fixtures.fold<int>(0, (sum, fixture) => sum + fixture.yellowCards);
-  int get redCards => fixtures.fold<int>(0, (sum, fixture) => sum + fixture.redCards);
+  int get yellowCards =>
+      fixtures.fold<int>(0, (sum, fixture) => sum + fixture.yellowCards);
+  int get redCards =>
+      fixtures.fold<int>(0, (sum, fixture) => sum + fixture.redCards);
   int get bonus => fixtures.fold<int>(0, (sum, fixture) => sum + fixture.bonus);
-  int get totalPoints => fixtures.fold<int>(0, (sum, fixture) => sum + fixture.points);
+  int get totalPoints =>
+      fixtures.fold<int>(0, (sum, fixture) => sum + fixture.points);
 
   const _PlayerGameweekBreakdown({
     required this.playerId,
@@ -644,42 +730,68 @@ class _FormulaSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final goalValue = _goalPointsForPosition(player.position);
-    final cleanSheetValue = player.position == PlayerPosition.goalkeeper ||
+    final cleanSheetValue =
+        player.position == PlayerPosition.goalkeeper ||
             player.position == PlayerPosition.defender
         ? AppConfig.pointsPerCleanSheet
         : 0;
     final savesPoints = player.position == PlayerPosition.goalkeeper
-        ? (breakdown.fixtures.fold<int>(0, (sum, fixture) => sum + (fixture.saves ~/ 3)))
+        ? (breakdown.fixtures.fold<int>(
+            0,
+            (sum, fixture) => sum + (fixture.saves ~/ 3),
+          ))
         : 0;
     final goalsPoints = breakdown.totalGoals * goalValue;
     final assistsPoints = breakdown.totalAssists * AppConfig.pointsPerAssist;
-    final cleanSheetPoints = breakdown.fixtures.any((fixture) => fixture.cleanSheet)
+    final cleanSheetPoints =
+        breakdown.fixtures.any((fixture) => fixture.cleanSheet)
         ? cleanSheetValue
         : 0;
     final bonusPoints = breakdown.bonus;
     final yellowPenalty = breakdown.yellowCards;
     final redPenalty = breakdown.redCards * 3;
-    final computedTotal = goalsPoints + assistsPoints + cleanSheetPoints + bonusPoints + savesPoints - yellowPenalty - redPenalty;
+    final computedTotal =
+        goalsPoints +
+        assistsPoints +
+        cleanSheetPoints +
+        bonusPoints +
+        savesPoints -
+        yellowPenalty -
+        redPenalty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Points formula',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            _BreakdownChip('Goals', '${breakdown.totalGoals} x $goalValue = $goalsPoints'),
-            _BreakdownChip('Assists', '${breakdown.totalAssists} x ${AppConfig.pointsPerAssist} = $assistsPoints'),
-            _BreakdownChip('Clean Sheet', cleanSheetPoints > 0 ? '+$cleanSheetPoints' : '0'),
+            _BreakdownChip(
+              'Goals',
+              '${breakdown.totalGoals} x $goalValue = $goalsPoints',
+            ),
+            _BreakdownChip(
+              'Assists',
+              '${breakdown.totalAssists} x ${AppConfig.pointsPerAssist} = $assistsPoints',
+            ),
+            _BreakdownChip(
+              'Clean Sheet',
+              cleanSheetPoints > 0 ? '+$cleanSheetPoints' : '0',
+            ),
             _BreakdownChip('Bonus', '+$bonusPoints'),
-            _BreakdownChip('Saves', player.position == PlayerPosition.goalkeeper ? '+$savesPoints' : '0'),
+            _BreakdownChip(
+              'Saves',
+              player.position == PlayerPosition.goalkeeper
+                  ? '+$savesPoints'
+                  : '0',
+            ),
             _BreakdownChip('Yellow Cards', '-$yellowPenalty'),
             _BreakdownChip('Red Cards', '-$redPenalty'),
             _BreakdownChip('Total', '${breakdown.totalPoints} pts'),
@@ -689,17 +801,17 @@ class _FormulaSummary extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Stored total differs from the live formula by ${breakdown.totalPoints - computedTotal}. The stored value is what the app currently uses.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
         ],
         const SizedBox(height: 8),
         Text(
           'Rule set: goals depend on position, assists are ${AppConfig.pointsPerAssist}, clean sheets are ${AppConfig.pointsPerCleanSheet} for GK/DEF, yellow cards are -1, red cards are -3, bonus is added directly, and goalkeeper saves add 1 per 3 saves.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppColors.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
       ],
     );
@@ -746,9 +858,9 @@ class _BreakdownChip extends StatelessWidget {
       ),
       child: Text(
         '$label: $value',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
   }

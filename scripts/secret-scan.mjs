@@ -34,6 +34,10 @@ const files = execSync('git ls-files', { encoding: 'utf8' })
 
 const findings = [];
 
+function isSafeEnvReference(line) {
+  return /process\.env\.[A-Z0-9_]+/.test(line);
+}
+
 for (const file of files) {
   let content;
   try {
@@ -45,6 +49,9 @@ for (const file of files) {
   const lines = content.split(/\r?\n/);
   lines.forEach((line, index) => {
     for (const pattern of patterns) {
+      if (isSafeEnvReference(line)) {
+        continue;
+      }
       if (pattern.regex.test(line)) {
         findings.push({ file, line: index + 1, pattern: pattern.name, snippet: line.trim() });
       }

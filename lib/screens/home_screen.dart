@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
@@ -283,11 +283,8 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                       Expanded(
                         child: Text(
                           'Gameweek Matches',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
                       Container(
@@ -655,8 +652,8 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
     final timeLabel = hour < 12
         ? 'morning'
         : hour < 18
-            ? 'afternoon'
-            : 'evening';
+        ? 'afternoon'
+        : 'evening';
 
     if (team == null) {
       return '${displayName != null ? 'Hi $displayName,' : 'Hi there,'} your $timeLabel checklist is to build a squad and keep an eye on live form.';
@@ -670,7 +667,10 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
     Team? team,
     String? displayName,
   ) {
-    final insights = _generateInsightCards(team: team, displayName: displayName);
+    final insights = _generateInsightCards(
+      team: team,
+      displayName: displayName,
+    );
 
     return [
       for (var i = 0; i < insights.length; i++) ...[
@@ -723,7 +723,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
     final averageForm = team.players.isEmpty
         ? 0.0
         : team.players.fold<double>(0, (sum, p) => sum + p.form) /
-            team.players.length;
+              team.players.length;
 
     cards.add(
       _InsightCardData(
@@ -849,11 +849,12 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
   Player? _topPlayerByScore(List<Player> players) {
     if (players.isEmpty) return null;
 
-    final sorted = [...players]..sort((a, b) {
-      final pointsComparison = b.points.compareTo(a.points);
-      if (pointsComparison != 0) return pointsComparison;
-      return b.gameweekPoints.compareTo(a.gameweekPoints);
-    });
+    final sorted = [...players]
+      ..sort((a, b) {
+        final pointsComparison = b.points.compareTo(a.points);
+        if (pointsComparison != 0) return pointsComparison;
+        return b.gameweekPoints.compareTo(a.gameweekPoints);
+      });
     return sorted.first;
   }
 
@@ -1220,10 +1221,19 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
           }
         }
 
-        final rowKickoff = _readString(row, const ['starting_at', 'starting_at_timestamp']);
-        final parsedKickoff = rowKickoff == null ? null : DateTime.tryParse(rowKickoff);
+        final rowKickoff = _readString(row, const [
+          'starting_at',
+          'starting_at_timestamp',
+        ]);
+        final parsedKickoff = rowKickoff == null
+            ? null
+            : DateTime.tryParse(rowKickoff);
         if (parsedKickoff != null) {
-          final diff = parsedKickoff.toUtc().difference(kickoffUtc).inHours.abs();
+          final diff = parsedKickoff
+              .toUtc()
+              .difference(kickoffUtc)
+              .inHours
+              .abs();
           if (diff <= 3) {
             score += 3;
           } else if (diff <= 12) {
@@ -1352,9 +1362,11 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
 
     final participant = scoreMap['participant'];
     if (participant is Map<String, dynamic>) {
-      final location =
-          _readString(participant, const ['location', 'type', 'side'])
-              ?.toLowerCase();
+      final location = _readString(participant, const [
+        'location',
+        'type',
+        'side',
+      ])?.toLowerCase();
       if (location == 'home' || location == 'local') return 'home';
       if (location == 'away' || location == 'visitor') return 'away';
     }
@@ -1407,8 +1419,8 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
       final meta = p['meta'] is Map<String, dynamic>
           ? p['meta'] as Map<String, dynamic>
           : const <String, dynamic>{};
-      final location =
-          (_readString(meta, const ['location']) ?? '').toLowerCase();
+      final location = (_readString(meta, const ['location']) ?? '')
+          .toLowerCase();
 
       if (location == 'home' || location == 'local') {
         home = name;
@@ -1551,13 +1563,15 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
                   padding: const EdgeInsets.all(12),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_month, color: AppColors.primary),
+                      const Icon(
+                        Icons.calendar_month,
+                        color: AppColors.primary,
+                      ),
                       const SizedBox(width: 10),
                       Text(
                         'Matchweek',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1594,111 +1608,125 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
               child: FutureBuilder<List<Match>>(
                 future: _fixturesFuture,
                 builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.error_outline,
-                            size: 40,
-                            color: AppColors.error,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Failed to load EPL fixtures for matchweek $_selectedMatchday',
-                            style: Theme.of(context).textTheme.titleMedium,
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${snapshot.error}',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textSecondary),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: _refresh,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                final fixtures = snapshot.data ?? const <Match>[];
-                if (fixtures.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No fixtures found for matchweek $_selectedMatchday',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async => _refresh(),
-                  child: ListView.separated(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    itemCount: fixtures.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final match = fixtures[index];
-                      final scoreText = (match.homeScore != null && match.awayScore != null)
-                          ? '${match.homeScore} - ${match.awayScore}'
-                          : 'vs';
-                      return Card(
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                            child: const Icon(Icons.sports_soccer, color: AppColors.primary),
-                          ),
-                          title: Text(
-                            '${match.homeTeamName} vs ${match.awayTeamName}',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          subtitle: Text(
-                            '${match.kickoffTime.toLocal()}'.split('.').first,
-                          ),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppColors.mutedLavender,
-                              borderRadius: BorderRadius.circular(12),
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              size: 40,
+                              color: AppColors.error,
                             ),
-                            child: Text(
-                              scoreText,
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Failed to load EPL fixtures for matchweek $_selectedMatchday',
+                              style: Theme.of(context).textTheme.titleMedium,
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => FixtureDetailsScreen(match: match),
-                              ),
-                            );
-                          },
+                            const SizedBox(height: 8),
+                            Text(
+                              '${snapshot.error}',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.textSecondary),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _refresh,
+                              child: const Text('Retry'),
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
-                );
-              },
+                      ),
+                    );
+                  }
+
+                  final fixtures = snapshot.data ?? const <Match>[];
+                  if (fixtures.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'No fixtures found for matchweek $_selectedMatchday',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: () async => _refresh(),
+                    child: ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: fixtures.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final match = fixtures[index];
+                        final scoreText =
+                            (match.homeScore != null && match.awayScore != null)
+                            ? '${match.homeScore} - ${match.awayScore}'
+                            : 'vs';
+                        return Card(
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: AppColors.primary.withValues(
+                                alpha: 0.1,
+                              ),
+                              child: const Icon(
+                                Icons.sports_soccer,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            title: Text(
+                              '${match.homeTeamName} vs ${match.awayTeamName}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${match.kickoffTime.toLocal()}'.split('.').first,
+                            ),
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.mutedLavender,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                scoreText,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      FixtureDetailsScreen(match: match),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
   }
 }
 

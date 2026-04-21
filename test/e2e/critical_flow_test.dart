@@ -137,8 +137,8 @@ Widget _wrapTeamStatus(Widget child) {
 
 class _StaticTeamProvider extends TeamProvider {
   _StaticTeamProvider(Team team)
-      : _team = team,
-        super(_SmokeTeamService(), disableAuthSubscription: true);
+    : _team = team,
+      super(_SmokeTeamService(), disableAuthSubscription: true);
 
   final Team _team;
 
@@ -169,8 +169,8 @@ class _StaticTeamProvider extends TeamProvider {
 
 class _StaticPlayerProvider extends PlayerProvider {
   _StaticPlayerProvider(List<Player> players)
-      : _players = players,
-        super(_SmokePlayerService());
+    : _players = players,
+      super(_SmokePlayerService());
 
   final List<Player> _players;
 
@@ -233,7 +233,9 @@ void main() {
     },
   );
 
-  testWidgets('gameweek points view shows recoverable error state', (tester) async {
+  testWidgets('gameweek points view shows recoverable error state', (
+    tester,
+  ) async {
     final team = _buildTeam();
 
     await tester.pumpWidget(
@@ -248,7 +250,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Gameweek Points'), findsOneWidget);
-    expect(find.text('Could not load gameweek points right now.'), findsOneWidget);
+    expect(
+      find.text('Could not load gameweek points right now.'),
+      findsOneWidget,
+    );
     expect(find.text('Retry'), findsOneWidget);
   });
 }

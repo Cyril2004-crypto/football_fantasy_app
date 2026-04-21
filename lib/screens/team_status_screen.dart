@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/player.dart';
 import '../providers/team_provider.dart';
@@ -254,10 +254,10 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: _buildAvailabilityCard(team.players),
-                    ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: _buildAvailabilityCard(team.players),
+                      ),
                       Row(
                         children: [
                           Expanded(
@@ -336,9 +336,9 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
                 const SizedBox(width: 8),
                 Text(
                   'Injuries & Suspensions',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -417,10 +417,7 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
       ),
       child: Text(
         '$label: $value',
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.bold,
-        ),
+        style: TextStyle(color: color, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -465,10 +462,7 @@ class _TeamStatusScreenState extends State<TeamStatusScreen> {
           ),
           child: Text(
             label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: color, fontWeight: FontWeight.bold),
           ),
         ),
       ),

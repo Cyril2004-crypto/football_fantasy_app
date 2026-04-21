@@ -147,7 +147,8 @@ class PlayerService {
       for (final rawRow in suspensionsRows as List<dynamic>) {
         final row = rawRow as Map<String, dynamic>;
         final playerId = (row['player_id'] as num?)?.toInt();
-        final matchesRemaining = (row['matches_remaining'] as num?)?.toInt() ?? 0;
+        final matchesRemaining =
+            (row['matches_remaining'] as num?)?.toInt() ?? 0;
         if (playerId != null && matchesRemaining > 0) {
           suspendedPlayerIds.add(playerId);
         }
@@ -215,9 +216,12 @@ class PlayerService {
             ? 0
             : (latestGwPointsByPlayerId[internalPlayerId] ?? 0),
         nationality: data['nationality'] as String? ?? '',
-        isInjured: internalPlayerId != null && injuredPlayerIds.contains(internalPlayerId),
+        isInjured:
+            internalPlayerId != null &&
+            injuredPlayerIds.contains(internalPlayerId),
         isSuspended:
-            internalPlayerId != null && suspendedPlayerIds.contains(internalPlayerId),
+            internalPlayerId != null &&
+            suspendedPlayerIds.contains(internalPlayerId),
         form: 0.0,
       );
     }).toList();

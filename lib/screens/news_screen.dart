@@ -61,8 +61,7 @@ class _NewsScreenState extends State<NewsScreen> {
       }
 
       if (items.isEmpty) {
-        _statusMessage =
-            'No Sportmonks news returned yet for recent fixtures';
+        _statusMessage = 'No Sportmonks news returned yet for recent fixtures';
         return const <_NewsItem>[];
       }
 
@@ -181,7 +180,6 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   List<_NewsItem> _extractNewsItemsFromFixture(Map<String, dynamic> data) {
-
     final homeName = _teamNameFromIndex(data, 0);
     final awayName = _teamNameFromIndex(data, 1);
     final fixtureTitle = '$homeName vs $awayName';
@@ -203,7 +201,7 @@ class _NewsScreenState extends State<NewsScreen> {
       final blockMap = block is Map<String, dynamic>
           ? block
           : const <String, dynamic>{};
-        final lines = _listFromAnyKey(blockMap, const ['lines', 'line']);
+      final lines = _listFromAnyKey(blockMap, const ['lines', 'line']);
 
       for (final line in lines) {
         if (line is! Map<String, dynamic>) {
@@ -241,21 +239,26 @@ class _NewsScreenState extends State<NewsScreen> {
 
         final minute = _readInt(event, const ['minute']);
         final playerName = _readString(event['player'], const ['name']);
-        final eventType = (_readString(event['type'], const ['developer_name']) ??
-                _readString(event['type'], const ['name']) ??
-                'match event')
-            .replaceAll('_', ' ')
-            .trim();
+        final eventType =
+            (_readString(event['type'], const ['developer_name']) ??
+                    _readString(event['type'], const ['name']) ??
+                    'match event')
+                .replaceAll('_', ' ')
+                .trim();
 
         final title = minute == null
             ? eventType.toUpperCase()
-          : '${eventType.toUpperCase()} - $minute\'';
+            : '${eventType.toUpperCase()} - $minute\'';
         final description = playerName == null || playerName.isEmpty
             ? 'Event recorded for $fixtureTitle.'
             : '$playerName involved for $fixtureTitle.';
 
         items.add(
-          _NewsItem(title: title, description: description, source: fixtureTitle),
+          _NewsItem(
+            title: title,
+            description: description,
+            source: fixtureTitle,
+          ),
         );
       }
     }
@@ -263,7 +266,10 @@ class _NewsScreenState extends State<NewsScreen> {
     return items;
   }
 
-  List<dynamic> _listFromAnyKey(Map<String, dynamic> source, List<String> keys) {
+  List<dynamic> _listFromAnyKey(
+    Map<String, dynamic> source,
+    List<String> keys,
+  ) {
     for (final key in keys) {
       final value = source[key];
       if (value is List) {
@@ -294,11 +300,12 @@ class _NewsScreenState extends State<NewsScreen> {
 
       final minute = _readInt(event, const ['minute']);
       final playerName = _readString(event['player'], const ['name']);
-      final eventType = (_readString(event['type'], const ['developer_name']) ??
-              _readString(event['type'], const ['name']) ??
-              'match event')
-          .replaceAll('_', ' ')
-          .trim();
+      final eventType =
+          (_readString(event['type'], const ['developer_name']) ??
+                  _readString(event['type'], const ['name']) ??
+                  'match event')
+              .replaceAll('_', ' ')
+              .trim();
 
       final title = minute == null
           ? eventType.toUpperCase()
