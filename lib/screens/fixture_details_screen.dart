@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
@@ -21,11 +24,20 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
   );
 
   late final Future<_FixtureDetailsData> _detailsFuture;
+  String? _fixtureVenue;
+  int _selectedTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _detailsFuture = _loadFixtureDetails();
+    _detailsFuture = _loadFixtureDetails().then((details) {
+      if (mounted) {
+        setState(() {
+          _fixtureVenue = details.venue;
+        });
+      }
+      return details;
+    });
   }
 
   Future<_FixtureDetailsData> _loadFixtureDetails() async {
@@ -38,6 +50,7 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
                 'Unable to resolve this fixture in the stats provider.',
           ),
           timeline: <_FixtureEventItem>[],
+          venue: null,
           homeLineup: <_LineupPlayer>[],
           awayLineup: <_LineupPlayer>[],
         );
@@ -47,6 +60,10 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
       final data = centre['data'] is Map<String, dynamic>
           ? centre['data'] as Map<String, dynamic>
           : const <String, dynamic>{};
+
+      try {
+        debugPrint('Match centre data for fixture $fixtureId: ${jsonEncode(data)}');
+      } catch (_) {}
 
       var stats = _statsFromList(
         data['statistics'] is List
@@ -66,12 +83,20 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
         }
       }
 
+      final timeline = _extractTimeline(data);
       final parsedLineups = _extractLineups(data);
+      final venue = _extractVenue(data) ?? widget.match.venue;
+      final annotatedLineups = _annotateSubstitutions(
+        parsedLineups.home,
+        parsedLineups.away,
+        timeline,
+      );
       return _FixtureDetailsData(
         stats: stats,
-        timeline: _extractTimeline(data),
-        homeLineup: parsedLineups.$1,
-        awayLineup: parsedLineups.$2,
+        timeline: timeline,
+        venue: venue,
+        homeLineup: annotatedLineups.home,
+        awayLineup: annotatedLineups.away,
       );
     } catch (_) {
       return const _FixtureDetailsData(
@@ -79,6 +104,7 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
           statusMessage: 'Could not load match details right now.',
         ),
         timeline: <_FixtureEventItem>[],
+        venue: null,
         homeLineup: <_LineupPlayer>[],
         awayLineup: <_LineupPlayer>[],
       );
@@ -218,6 +244,14 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
       final relatedPlayerName = _readString(event['relatedplayer'], const [
         'name',
       ]);
+      final teamName =
+          _readString(event['team'], const ['name']) ??
+          _readString(event['participant'], const ['name']);
+      final commentary = _readString(event, const [
+        'commentary',
+        'description',
+        'text',
+      ]);
 
       items.add(
         _FixtureEventItem(
@@ -225,6 +259,8 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
           type: eventType,
           playerName: playerName,
           relatedPlayerName: relatedPlayerName,
+          teamName: teamName,
+          commentary: commentary,
         ),
       );
     }
@@ -237,7 +273,36 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
     return items;
   }
 
-  (List<_LineupPlayer>, List<_LineupPlayer>) _extractLineups(
+  String? _extractVenue(Map<String, dynamic> data) {
+    // Common shapes:
+    // data['venue'] => String
+    // data['venue'] => Map { 'name': 'Stadium', ... }
+    // data['venue'] => Map { 'data': { 'name': 'Stadium' } }
+    final venueNode = data['venue'];
+
+    if (venueNode is String && venueNode.trim().isNotEmpty) {
+      return venueNode.trim();
+    }
+
+    if (venueNode is Map<String, dynamic>) {
+      final name = _readString(venueNode, const ['name', 'display_name']);
+      if (name != null && name.isNotEmpty) return name;
+
+      final inner = venueNode['data'];
+      if (inner is Map<String, dynamic>) {
+        final innerName = _readString(inner, const ['name', 'display_name', 'venue', 'venue_name']);
+        if (innerName != null && innerName.isNotEmpty) return innerName;
+      }
+    }
+
+    // Some payloads put a top-level venue_name or similar key
+    final top = _readString(data, const ['venue_name', 'venue_full_name', 'venue']);
+    if (top != null && top.isNotEmpty) return top;
+
+    return null;
+  }
+
+  ({List<_LineupPlayer> home, List<_LineupPlayer> away}) _extractLineups(
     Map<String, dynamic> data,
   ) {
     final participants = data['participants'] is List
@@ -265,10 +330,11 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
         ? data['lineups'] as List<dynamic>
         : const <dynamic>[];
 
-    final home = <_LineupPlayer>[];
-    final away = <_LineupPlayer>[];
+    var home = <_LineupPlayer>[];
+    var away = <_LineupPlayer>[];
 
-    for (final raw in lineups) {
+    for (var index = 0; index < lineups.length; index++) {
+      final raw = lineups[index];
       if (raw is! Map<String, dynamic>) {
         continue;
       }
@@ -282,13 +348,12 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
 
       final position = _readString(raw, const ['position']);
       final shirtNumber = _readInt(raw, const ['number', 'shirt_number']);
-      final lineupType =
+        final lineupType =
           (_readString(raw['type'], const ['name']) ??
-                  _readString(raw['type'], const ['developer_name']) ??
-                  '')
-              .toLowerCase();
-      final isStarter =
-          lineupType.contains('lineup') || lineupType.contains('starting');
+              _readString(raw['type'], const ['developer_name']) ??
+              '')
+            .toLowerCase();
+        final isStarter = _isStarterLineupType(lineupType);
 
       final teamId = _readString(raw, const ['team_id', 'participant_id']);
       final player = _LineupPlayer(
@@ -296,6 +361,9 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
         position: position,
         shirtNumber: shirtNumber,
         isStarter: isStarter,
+        wasSubbedIn: false,
+        wasSubbedOut: false,
+        rawOrder: index,
       );
 
       if (teamId != null && teamId == homeParticipantId) {
@@ -324,7 +392,141 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
     home.sort(sortLineup);
     away.sort(sortLineup);
 
-    return (home, away);
+    home = _ensureStartingElevens(home);
+    away = _ensureStartingElevens(away);
+
+    return (home: home, away: away);
+  }
+
+  bool _isStarterLineupType(String lineupType) {
+    if (lineupType.contains('bench') ||
+        lineupType.contains('reserve') ||
+        lineupType.contains('substitute')) {
+      return false;
+    }
+
+    if (lineupType.contains('starting') ||
+        lineupType.contains('starter') ||
+        lineupType.contains('lineup') ||
+        lineupType.contains('xi') ||
+        lineupType.contains('eleven')) {
+      return true;
+    }
+
+    return false;
+  }
+
+  List<_LineupPlayer> _ensureStartingElevens(List<_LineupPlayer> players) {
+    final starterCount = players.where((player) => player.isStarter).length;
+    if (starterCount > 0 || players.isEmpty) {
+      return players;
+    }
+
+    final ordered = [...players]..sort((a, b) => a.rawOrder.compareTo(b.rawOrder));
+    final result = <_LineupPlayer>[];
+    for (var index = 0; index < ordered.length; index++) {
+      result.add(
+        ordered[index].copyWith(
+          isStarter: index < 11,
+        ),
+      );
+    }
+
+    result.sort((a, b) {
+      if (a.isStarter != b.isStarter) {
+        return a.isStarter ? -1 : 1;
+      }
+      final an = a.shirtNumber ?? 999;
+      final bn = b.shirtNumber ?? 999;
+      if (an != bn) {
+        return an.compareTo(bn);
+      }
+      return a.rawOrder.compareTo(b.rawOrder);
+    });
+
+    return result;
+  }
+
+  ({List<_LineupPlayer> home, List<_LineupPlayer> away}) _annotateSubstitutions(
+    List<_LineupPlayer> homeLineup,
+    List<_LineupPlayer> awayLineup,
+    List<_FixtureEventItem> timeline,
+  ) {
+    var home = homeLineup;
+    var away = awayLineup;
+
+    for (final event in timeline) {
+      if (!event.type.toLowerCase().contains('substitut')) {
+        continue;
+      }
+
+      final first = event.playerName;
+      final second = event.relatedPlayerName;
+      if (first == null || second == null) {
+        continue;
+      }
+
+      final firstMatch = _findLineupPlayer(first, home, away);
+      final secondMatch = _findLineupPlayer(second, home, away);
+
+      if (firstMatch != null && secondMatch != null) {
+        final firstStarter = firstMatch.player.isStarter;
+        final secondStarter = secondMatch.player.isStarter;
+
+        if (firstStarter && !secondStarter) {
+          home = _markPlayer(home, firstMatch.index, wasSubbedOut: true);
+          away = _markPlayer(away, secondMatch.index, wasSubbedIn: true);
+        } else if (!firstStarter && secondStarter) {
+          home = _markPlayer(home, firstMatch.index, wasSubbedIn: true);
+          away = _markPlayer(away, secondMatch.index, wasSubbedOut: true);
+        } else {
+          home = _markPlayer(home, firstMatch.index, wasSubbedOut: firstStarter);
+          away = _markPlayer(away, secondMatch.index, wasSubbedIn: !secondStarter);
+        }
+      }
+    }
+
+    return (home: home, away: away);
+  }
+
+  ({int index, _LineupPlayer player})? _findLineupPlayer(
+    String playerName,
+    List<_LineupPlayer> home,
+    List<_LineupPlayer> away,
+  ) {
+    final normalized = _normalizeTeamName(playerName);
+
+    for (var index = 0; index < home.length; index++) {
+      if (_normalizeTeamName(home[index].name) == normalized) {
+        return (index: index, player: home[index]);
+      }
+    }
+
+    for (var index = 0; index < away.length; index++) {
+      if (_normalizeTeamName(away[index].name) == normalized) {
+        return (index: index, player: away[index]);
+      }
+    }
+
+    return null;
+  }
+
+  List<_LineupPlayer> _markPlayer(
+    List<_LineupPlayer> players,
+    int index, {
+    bool? wasSubbedIn,
+    bool? wasSubbedOut,
+  }) {
+    return [
+      for (var i = 0; i < players.length; i++)
+        if (i == index)
+          players[i].copyWith(
+            wasSubbedIn: wasSubbedIn ?? players[i].wasSubbedIn,
+            wasSubbedOut: wasSubbedOut ?? players[i].wasSubbedOut,
+          )
+        else
+          players[i],
+    ];
   }
 
   Future<int?> _resolveSportmonksFixtureId() async {
@@ -628,12 +830,17 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
                     ),
                     const SizedBox(height: 12),
                     _buildInfoRow('Gameweek', '${match.gameweek}'),
-                    _buildInfoRow('Venue', match.venue ?? 'TBD'),
+                    _buildInfoRow(
+                      'Venue',
+                      _fixtureVenue ?? match.venue ?? 'TBD',
+                    ),
                     _buildInfoRow('Fixture ID', match.id),
                   ],
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            _buildTabBar(context),
             const SizedBox(height: 12),
             FutureBuilder<_FixtureDetailsData>(
               future: _detailsFuture,
@@ -647,21 +854,24 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
                     const _FixtureDetailsData(
                       stats: _FixtureStatsData(),
                       timeline: <_FixtureEventItem>[],
+                      venue: null,
                       homeLineup: <_LineupPlayer>[],
                       awayLineup: <_LineupPlayer>[],
                     );
 
                 return Column(
                   children: [
-                    _buildStatisticsCard(context, details.stats),
-                    const SizedBox(height: 12),
-                    _buildTimelineCard(context, details.timeline),
-                    const SizedBox(height: 12),
-                    _buildLineupsCard(
-                      context,
-                      details.homeLineup,
-                      details.awayLineup,
-                    ),
+                    if (_selectedTabIndex == 0) ...[
+                      _buildStatisticsCard(context, details.stats),
+                      const SizedBox(height: 12),
+                      _buildLineupsCard(
+                        context,
+                        details.homeLineup,
+                        details.awayLineup,
+                      ),
+                    ] else if (_selectedTabIndex == 1) ...[
+                      _buildPlayByPlayCard(context, details.timeline),
+                    ],
                   ],
                 );
               },
@@ -670,6 +880,545 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildTabBar(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _buildTabButton('Stats & Lineups', 0),
+          const SizedBox(width: 8),
+          _buildTabButton('Play by Play', 1),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabButton(String label, int tabIndex) {
+    final isSelected = _selectedTabIndex == tabIndex;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedTabIndex = tabIndex;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.mutedLavender,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: isSelected ? Colors.white : AppColors.textSecondary,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayByPlayCard(
+    BuildContext context,
+    List<_FixtureEventItem> timeline,
+  ) {
+    final spotlightEvent = timeline.isNotEmpty ? timeline.last : null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Play by Play',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Animated match events from the live feed.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            if (spotlightEvent == null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.mutedLavender,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  'No match events yet. The live pitch animation will appear when the feed starts.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              )
+            else ...[
+              _buildPitchBoard(context, spotlightEvent),
+              const SizedBox(height: 16),
+              Text(
+                'Recent plays',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              ...timeline.reversed.take(6).toList().asMap().entries.map((
+                entry,
+              ) {
+                final index = entry.key;
+                final event = entry.value;
+                return _buildPlayByPlayEvent(
+                  context,
+                  event,
+                  index,
+                  timeline.length,
+                );
+              }),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPitchBoard(BuildContext context, _FixtureEventItem event) {
+    final visual = _eventVisualFor(event);
+    final team = event.teamName ?? 'Live feed';
+    final player = event.playerName ?? 'Unknown player';
+    final related = event.relatedPlayerName == null
+        ? ''
+        : ' (${event.relatedPlayerName})';
+    final minute = event.minute == null ? '-' : '${event.minute}\'';
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.94, end: 1),
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutBack,
+      builder: (context, scale, child) {
+        return Transform.scale(scale: scale, child: child);
+      },
+      child: Container(
+        height: 250,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF114F1F), Color(0xFF0A3816)],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              Positioned.fill(child: CustomPaint(painter: _PitchPainter())),
+              Positioned(
+                top: 16,
+                left: 16,
+                right: 16,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.42),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(visual.icon, color: visual.color, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            visual.label,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        minute,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 68,
+                left: 16,
+                right: 16,
+                child: Text(
+                  '$player$related',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Positioned(
+                top: 100,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.32),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    team,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: Align(
+                  alignment: _eventAlignment(event),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.85, end: 1),
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeOutBack,
+                    builder: (context, scale, child) {
+                      return Transform.scale(scale: scale, child: child);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: visual.color.withValues(alpha: 0.25),
+                            blurRadius: 16,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: visual.color.withValues(alpha: 0.14),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              visual.icon,
+                              color: visual.color,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                visual.label,
+                                style: TextStyle(
+                                  color: visual.color,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (event.commentary != null &&
+                                  event.commentary!.isNotEmpty)
+                                Text(
+                                  event.commentary!,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: AppColors.textPrimary),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 16,
+                child: TweenAnimationBuilder<Alignment>(
+                  tween: AlignmentTween(
+                    begin: const Alignment(-0.9, 0.6),
+                    end: _eventAlignment(event),
+                  ),
+                  duration: const Duration(milliseconds: 750),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, alignment, child) {
+                    return Align(alignment: alignment, child: child);
+                  },
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: visual.color, width: 3),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayByPlayEvent(
+    BuildContext context,
+    _FixtureEventItem event,
+    int index,
+    int totalEvents,
+  ) {
+    final minute = event.minute == null ? '-' : '${event.minute}\'';
+    final player = event.playerName ?? 'Unknown player';
+    final related = event.relatedPlayerName == null
+        ? ''
+        : ' (${event.relatedPlayerName})';
+    final visual = _eventVisualFor(event);
+    final isLastEvent = index == totalEvents - 1;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.94, end: 1),
+      duration: Duration(milliseconds: 250 + (index * 60)),
+      curve: Curves.easeOutCubic,
+      builder: (context, scale, child) {
+        return Transform.scale(scale: scale, child: child);
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              children: [
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: visual.color,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+                if (!isLastEvent)
+                  Container(
+                    width: 2,
+                    height: 38,
+                    color: AppColors.textSecondary.withValues(alpha: 0.25),
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.mutedLavender.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: visual.color.withValues(alpha: 0.16),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                visual.label,
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: visual.color,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$player$related',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: visual.color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            minute,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: visual.color,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (event.teamName != null &&
+                        event.teamName!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        event.teamName!,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                    if (event.commentary != null &&
+                        event.commentary!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        event.commentary!,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  _EventVisual _eventVisualFor(_FixtureEventItem event) {
+    final type = event.type.toLowerCase();
+
+    if (type.contains('goal')) {
+      return const _EventVisual('Goal', Icons.sports_soccer, Colors.green);
+    }
+    if (type.contains('yellow')) {
+      return const _EventVisual(
+        'Yellow Card',
+        Icons.square_outlined,
+        Colors.amber,
+      );
+    }
+    if (type.contains('red')) {
+      return const _EventVisual(
+        'Red Card',
+        Icons.stop_circle_outlined,
+        Colors.red,
+      );
+    }
+    if (type.contains('substitut')) {
+      return const _EventVisual('Substitution', Icons.swap_horiz, Colors.blue);
+    }
+    if (type.contains('pass')) {
+      return const _EventVisual('Pass', Icons.alt_route, Colors.cyan);
+    }
+    if (type.contains('throw')) {
+      return const _EventVisual('Throw in', Icons.compare_arrows, Colors.white);
+    }
+    if (type.contains('corner')) {
+      return const _EventVisual('Corner', Icons.flag_outlined, Colors.orange);
+    }
+    if (type.contains('var')) {
+      return const _EventVisual(
+        'VAR',
+        Icons.video_call_outlined,
+        Colors.purple,
+      );
+    }
+    return const _EventVisual('Match Event', Icons.bolt, Colors.white);
+  }
+
+  Alignment _eventAlignment(_FixtureEventItem event) {
+    final minute = event.minute ?? 45;
+    final type = event.type.toLowerCase();
+    final normalizedMinute = (minute % 100) / 50 - 1;
+
+    double vertical;
+    if (type.contains('goal')) {
+      vertical = -0.1;
+    } else if (type.contains('substitut')) {
+      vertical = 0.45;
+    } else if (type.contains('yellow') || type.contains('red')) {
+      vertical = 0.18;
+    } else if (type.contains('throw') || type.contains('pass')) {
+      vertical = -0.45;
+    } else {
+      vertical = 0.12;
+    }
+
+    return Alignment(normalizedMinute.clamp(-0.92, 0.92), vertical);
   }
 
   Widget _buildStatisticsCard(BuildContext context, _FixtureStatsData stats) {
@@ -732,38 +1481,6 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
     );
   }
 
-  Widget _buildTimelineCard(
-    BuildContext context,
-    List<_FixtureEventItem> timeline,
-  ) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Event Timeline',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            if (timeline.isEmpty)
-              Text(
-                'No event timeline available for this fixture yet.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-              )
-            else
-              ...timeline.map((event) => _buildTimelineRow(context, event)),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildLineupsCard(
     BuildContext context,
     List<_LineupPlayer> homeLineup,
@@ -818,44 +1535,14 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
     );
   }
 
-  Widget _buildTimelineRow(BuildContext context, _FixtureEventItem event) {
-    final minute = event.minute == null ? '-' : '${event.minute}\'';
-    final player = event.playerName ?? 'Unknown player';
-    final related = event.relatedPlayerName == null
-        ? ''
-        : ' (${event.relatedPlayerName})';
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 42,
-            child: Text(
-              minute,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              '${event.type}: $player$related',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildLineupColumn(
     BuildContext context, {
     required String title,
     required List<_LineupPlayer> players,
   }) {
+    final starters = players.where((player) => player.isStarter).toList();
+    final bench = players.where((player) => !player.isStarter).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -868,24 +1555,105 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 8),
+        _buildLineupSection(
+          context,
+          title: 'Starting XI',
+          players: starters,
+        ),
+        const SizedBox(height: 12),
+        _buildLineupSection(
+          context,
+          title: 'Bench',
+          players: bench,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLineupSection(
+    BuildContext context, {
+    required String title,
+    required List<_LineupPlayer> players,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 6),
         if (players.isEmpty)
           Text(
-            'No lineup data',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            'None',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
           )
         else
           ...players.map((player) {
             final number = player.shirtNumber == null
                 ? ''
                 : '#${player.shirtNumber} ';
-            final role = player.isStarter ? '' : ' (Bench)';
+            final icon = player.wasSubbedIn
+                ? Icons.input
+                : player.wasSubbedOut
+                    ? Icons.output
+                    : player.isStarter
+                        ? Icons.verified
+                        : Icons.chair_alt;
+            final iconColor = player.wasSubbedIn
+                ? Colors.green
+                : player.wasSubbedOut
+                    ? Colors.orange
+                    : player.isStarter
+                        ? AppColors.primary
+                        : AppColors.textSecondary;
+            final statusLabel = player.wasSubbedIn
+                ? 'Sub in'
+                : player.wasSubbedOut
+                    ? 'Sub out'
+                    : player.isStarter
+                        ? 'Starter'
+                        : 'Bench';
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 6),
-              child: Text(
-                '$number${player.name}$role',
-                style: Theme.of(context).textTheme.bodySmall,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 14, color: iconColor),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '$number${player.name}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: iconColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      statusLabel,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: iconColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ),
+                ],
               ),
             );
           }),
@@ -1011,17 +1779,27 @@ class _FixtureDetailsScreenState extends State<FixtureDetailsScreen> {
         return AppColors.warning;
     }
   }
+
+  String? detailsVenue(_FixtureDetailsData? details) {
+    final venue = details?.venue?.trim();
+    if (venue == null || venue.isEmpty) {
+      return null;
+    }
+    return venue;
+  }
 }
 
 class _FixtureDetailsData {
   final _FixtureStatsData stats;
   final List<_FixtureEventItem> timeline;
+  final String? venue;
   final List<_LineupPlayer> homeLineup;
   final List<_LineupPlayer> awayLineup;
 
   const _FixtureDetailsData({
     required this.stats,
     required this.timeline,
+    required this.venue,
     required this.homeLineup,
     required this.awayLineup,
   });
@@ -1066,13 +1844,68 @@ class _FixtureEventItem {
   final String type;
   final String? playerName;
   final String? relatedPlayerName;
+  final String? teamName;
+  final String? commentary;
 
   const _FixtureEventItem({
     required this.minute,
     required this.type,
     required this.playerName,
     required this.relatedPlayerName,
+    required this.teamName,
+    required this.commentary,
   });
+}
+
+class _EventVisual {
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const _EventVisual(this.label, this.icon, this.color);
+}
+
+class _PitchPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..color = Colors.white.withValues(alpha: 0.34);
+
+    const penaltyWidth = 76.0;
+    const penaltyHeight = 118.0;
+
+    canvas.drawRect(Offset.zero & size, paint);
+    canvas.drawLine(
+      Offset(size.width / 2, 0),
+      Offset(size.width / 2, size.height),
+      paint,
+    );
+    canvas.drawCircle(Offset(size.width / 2, size.height / 2), 38, paint);
+    canvas.drawCircle(Offset(size.width / 2, size.height / 2), 2, paint);
+    canvas.drawRect(
+      Rect.fromLTWH(
+        0,
+        (size.height - penaltyHeight) / 2,
+        penaltyWidth,
+        penaltyHeight,
+      ),
+      paint,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(
+        size.width - penaltyWidth,
+        (size.height - penaltyHeight) / 2,
+        penaltyWidth,
+        penaltyHeight,
+      ),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _LineupPlayer {
@@ -1080,11 +1913,37 @@ class _LineupPlayer {
   final String? position;
   final int? shirtNumber;
   final bool isStarter;
+  final bool wasSubbedIn;
+  final bool wasSubbedOut;
+  final int rawOrder;
 
   const _LineupPlayer({
     required this.name,
     required this.position,
     required this.shirtNumber,
     required this.isStarter,
+    required this.wasSubbedIn,
+    required this.wasSubbedOut,
+    required this.rawOrder,
   });
+
+  _LineupPlayer copyWith({
+    String? name,
+    String? position,
+    int? shirtNumber,
+    bool? isStarter,
+    bool? wasSubbedIn,
+    bool? wasSubbedOut,
+    int? rawOrder,
+  }) {
+    return _LineupPlayer(
+      name: name ?? this.name,
+      position: position ?? this.position,
+      shirtNumber: shirtNumber ?? this.shirtNumber,
+      isStarter: isStarter ?? this.isStarter,
+      wasSubbedIn: wasSubbedIn ?? this.wasSubbedIn,
+      wasSubbedOut: wasSubbedOut ?? this.wasSubbedOut,
+      rawOrder: rawOrder ?? this.rawOrder,
+    );
+  }
 }

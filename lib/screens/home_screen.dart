@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -92,6 +95,7 @@ class HomeTabScreen extends StatefulWidget {
 
 class _HomeTabScreenState extends State<HomeTabScreen> {
   late Future<List<Match>> _matchesFuture;
+  late Future<int> _liveMatchesFuture;
   final MatchService _matchService = MatchService();
   static const int _competitionId = 2021;
   int _selectedMatchday = 1;
@@ -101,6 +105,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
   void initState() {
     super.initState();
     _matchesFuture = _loadMatches();
+    _liveMatchesFuture = _loadLiveMatchCount();
   }
 
   Future<List<Match>> _loadMatches() {
@@ -118,6 +123,15 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
           _matchesCache[_selectedMatchday] = matches;
           return matches;
         });
+  }
+
+  Future<int> _loadLiveMatchCount() async {
+    try {
+      final liveMatches = await _matchService.getLiveMatches();
+      return liveMatches.length;
+    } catch (_) {
+      return 0;
+    }
   }
 
   void _onMatchdayChanged(int value) {
@@ -179,17 +193,28 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: _buildShortcutCard(
-                      context,
-                      title: 'Live Scores',
-                      subtitle: 'In-play updates',
-                      icon: Icons.live_tv,
-                      color: AppColors.accent,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const LiveScoreScreen(),
-                          ),
+                    child: FutureBuilder<int>(
+                      future: _liveMatchesFuture,
+                      builder: (context, snapshot) {
+                        final liveCount = snapshot.data ?? 0;
+                        return _buildShortcutCard(
+                          context,
+                          title: 'Live Scores',
+                          subtitle: liveCount > 0
+                              ? '$liveCount live now'
+                              : 'In-play updates',
+                          icon: Icons.live_tv,
+                          color: AppColors.accent,
+                          badgeText: liveCount > 0
+                              ? liveCount.toString()
+                              : null,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const LiveScoreScreen(),
+                              ),
+                            );
+                          },
                         );
                       },
                     ),
@@ -864,6 +889,7 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
     required String subtitle,
     required IconData icon,
     required Color color,
+    String? badgeText,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -879,7 +905,31 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, color: color),
+                const Spacer(),
+                if (badgeText != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      badgeText,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 6),
             Text(
               title,
@@ -1161,11 +1211,18 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
     return matches.map((match) {
       final row = _findSportmonksFixtureForMatch(match);
       if (row == null) {
+        if (kDebugMode) {
+          debugPrint('No Sportmonks row found for ${match.homeTeamName} vs ${match.awayTeamName}');
+        }
         return match;
       }
 
       final status = _statusFromSportmonksRow(row, fallback: match.status);
       final score = _scoreFromSportmonksRow(row);
+
+      if (kDebugMode) {
+        debugPrint('Matched ${match.homeTeamName} vs ${match.awayTeamName} - Sportmonks scores: ${score.$1} - ${score.$2}');
+      }
 
       return Match(
         id: match.id,
@@ -1267,6 +1324,22 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
         ? row['scores'] as List<dynamic>
         : const <dynamic>[];
 
+    // DEBUG: Log what we're working with
+    if (kDebugMode) {
+      try {
+        debugPrint('=== SCORE EXTRACTION DEBUG ===');
+        debugPrint('Row ID: ${row['id']}');
+        debugPrint('Participants: ${participants.length}');
+        if (homeParticipantId != null) debugPrint('  Home ID: $homeParticipantId');
+        if (awayParticipantId != null) debugPrint('  Away ID: $awayParticipantId');
+        debugPrint('Scores array length: ${scores.length}');
+        if (scores.isNotEmpty) {
+          debugPrint('First score entry: ${jsonEncode(scores.first)}');
+        }
+        debugPrint('Full row keys: ${row.keys.toList()}');
+      } catch (_) {}
+    }
+
     int? homeScore;
     int? awayScore;
     int bestHomePriority = -1;
@@ -1277,39 +1350,64 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
         continue;
       }
 
-      final value = _readInt(item, const ['goals', 'score']);
-      if (value == null) {
+      // Extract goals from nested score object
+      final scoreObj = item['score'];
+      final goals = scoreObj is Map<String, dynamic>
+          ? _readInt(scoreObj, const ['goals'])
+          : null;
+      
+      if (kDebugMode) {
+        try {
+          debugPrint('  Score item - scoreObj type: ${scoreObj.runtimeType}, goals: $goals');
+        } catch (_) {}
+      }
+      
+      if (goals == null) {
         continue;
       }
 
       final desc =
           (_readString(item, const ['description', 'type', 'name']) ?? '')
               .toLowerCase();
-      final participantId = _readString(item, const ['participant_id']);
+      
+      // Get participant info directly from score object
+      final scoreParticipant = 
+          _readString(scoreObj, const ['participant']) ?? '';
+      
+      if (kDebugMode) {
+        try {
+          debugPrint('    desc: $desc, scoreParticipant: $scoreParticipant, goals: $goals');
+        } catch (_) {}
+      }
+      
       final priority = _scorePriority(desc, item);
 
-      final participantRole = _resolveParticipantRole(
-        item,
-        participantId: participantId,
-        homeParticipantId: homeParticipantId,
-        awayParticipantId: awayParticipantId,
-      );
-
-      if (participantRole == 'home' ||
+      // Use score.participant field which directly indicates "home" or "away"
+      if (scoreParticipant == 'home' ||
           desc.contains('home') ||
           desc.contains('local')) {
         if (priority >= bestHomePriority) {
           bestHomePriority = priority;
-          homeScore = value;
+          homeScore = goals;
+          if (kDebugMode) {
+            debugPrint('      Setting homeScore=$goals with priority=$priority');
+          }
         }
-      } else if (participantRole == 'away' ||
+      } else if (scoreParticipant == 'away' ||
           desc.contains('away') ||
           desc.contains('visitor')) {
         if (priority >= bestAwayPriority) {
           bestAwayPriority = priority;
-          awayScore = value;
+          awayScore = goals;
+          if (kDebugMode) {
+            debugPrint('      Setting awayScore=$goals with priority=$priority');
+          }
         }
       }
+    }
+
+    if (kDebugMode) {
+      debugPrint('Extracted scores - Home: $homeScore (priority: $bestHomePriority), Away: $awayScore (priority: $bestAwayPriority)');
     }
 
     return (homeScore, awayScore);
@@ -1670,7 +1768,9 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
                         final scoreText =
                             (match.homeScore != null && match.awayScore != null)
                             ? '${match.homeScore} - ${match.awayScore}'
-                            : 'vs';
+                            : match.status == MatchStatus.completed
+                                ? '${match.homeScore ?? 0} - ${match.awayScore ?? 0}'
+                                : 'vs';
                         return Card(
                           child: ListTile(
                             leading: CircleAvatar(
@@ -1697,13 +1797,18 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.mutedLavender,
+                                color: match.status == MatchStatus.completed
+                                    ? AppColors.success.withValues(alpha: 0.15)
+                                    : AppColors.mutedLavender,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 scoreText,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w700,
+                                  color: match.status == MatchStatus.completed
+                                      ? AppColors.success
+                                      : null,
                                 ),
                               ),
                             ),

@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
+import '../models/match.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/sportmonks_service.dart';
+import 'fixture_details_screen.dart';
 
 class LiveScoreScreen extends StatefulWidget {
   const LiveScoreScreen({super.key});
@@ -67,6 +69,8 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
   }
 
   _LiveScoreItem? _parseItem(Map<String, dynamic> row) {
+    final fixtureId = _readInt(row, const ['id']);
+
     final participants = row['participants'];
     final participantList = participants is List
         ? participants
@@ -145,14 +149,20 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
     final countryMap = leagueMap['country'] is Map<String, dynamic>
         ? leagueMap['country'] as Map<String, dynamic>
         : const <String, dynamic>{};
+    final venueMap = row['venue'] is Map<String, dynamic>
+      ? row['venue'] as Map<String, dynamic>
+      : const <String, dynamic>{};
 
     return _LiveScoreItem(
+      fixtureId: fixtureId,
       homeName: homeName,
       awayName: awayName,
       homeScore: homeScore,
       awayScore: awayScore,
       league: _readString(leagueMap, const ['name']) ?? 'League',
       country: _readString(countryMap, const ['name']),
+        venue: _readString(venueMap, const ['name']) ??
+          _readString(row, const ['venue']),
       state:
           _readString(row, const ['state', 'status', 'fixture_status']) ??
           'LIVE',
@@ -352,80 +362,109 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
                 }
 
                 final item = matches[index - 1];
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.accent,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'LIVE',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11,
+                return GestureDetector(
+                  onTap: item.fixtureId != null
+                      ? () {
+                          final match = Match(
+                            id: item.fixtureId.toString(),
+                            homeTeamId: 'unknown',
+                            homeTeamName: item.homeName,
+                            awayTeamId: 'unknown',
+                            awayTeamName: item.awayName,
+                            homeScore: item.homeScore,
+                            awayScore: item.awayScore,
+                            status: MatchStatus.live,
+                            kickoffTime: DateTime.now(),
+                            gameweek: 0,
+                            venue: item.venue,
+                          );
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  FixtureDetailsScreen(match: match),
+                            ),
+                          );
+                        }
+                      : null,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.accent,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'LIVE',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                item.country == null
-                                    ? item.league
-                                    : '${item.country} - ${item.league}',
-                                style: Theme.of(context).textTheme.labelMedium
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  item.country == null
+                                      ? item.league
+                                      : '${item.country} - ${item.league}',
+                                  style: Theme.of(context).textTheme.labelMedium
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                ),
+                              ),
+                              Text(
+                                item.state,
+                                style: Theme.of(context).textTheme.labelSmall
                                     ?.copyWith(color: AppColors.textSecondary),
                               ),
-                            ),
-                            Text(
-                              item.state,
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${item.homeName}\n${item.awayName}',
-                                style: Theme.of(context).textTheme.titleSmall
-                                    ?.copyWith(fontWeight: FontWeight.bold),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${item.homeName}\n${item.awayName}',
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.bold),
+                                ),
                               ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${item.homeScore ?? 0} - ${item.awayScore ?? 0}',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                ),
                               ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '${item.homeScore ?? 0} - ${item.awayScore ?? 0}',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primary,
-                                    ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -446,21 +485,25 @@ class _LiveScoreScreenState extends State<LiveScoreScreen> {
 }
 
 class _LiveScoreItem {
+  final int? fixtureId;
   final String homeName;
   final String awayName;
   final int? homeScore;
   final int? awayScore;
   final String league;
   final String? country;
+  final String? venue;
   final String state;
 
   const _LiveScoreItem({
+    required this.fixtureId,
     required this.homeName,
     required this.awayName,
     required this.homeScore,
     required this.awayScore,
     required this.league,
     required this.country,
+    required this.venue,
     required this.state,
   });
 }

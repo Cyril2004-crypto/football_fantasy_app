@@ -147,8 +147,11 @@ class SportmonksService {
     } catch (_) {
       if (!kIsWeb) rethrow;
 
+      // When running on web, fall back to the local backend proxy to avoid
+      // browser CORS issues. The backend proxy expects a `url` query param
+      // containing the target full URL to fetch.
       final proxiedEndpoint =
-          'https://corsproxy.io/?${Uri.encodeComponent(tokenizedEndpoint)}';
+          '${ApiEndpoints.baseUrl}/proxy?url=${Uri.encodeComponent(tokenizedEndpoint)}';
       return _apiService.getPublic(proxiedEndpoint);
     }
   }

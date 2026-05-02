@@ -1,0 +1,59 @@
+%%{init: {"theme": "base", "flowchart": {"htmlLabels": true, "nodeSpacing": 48, "rankSpacing": 72, "curve": "linear"}} }%%
+flowchart LR
+
+    %% Presentation layer
+    subgraph Client["Client Layer - Flutter App"]
+      UI["UI Screens and Widgets"]
+      State["State and Providers"]
+      AppServices["Core Services\nAuth, API, Player, Notifications"]
+      FirebaseSDK["Firebase SDK\nAuth + Messaging"]
+      SupabaseSDK["Supabase Flutter SDK"]
+
+      UI --> State --> AppServices
+      AppServices --> FirebaseSDK
+      AppServices --> SupabaseSDK
+    end
+
+    %% Application API layer
+    subgraph Backend["Backend Layer - Node + Express"]
+      Routes["REST Routes (/api/*)"]
+      AuthGuard["Firebase JWT Validation\n(authRequired)"]
+      LeagueProxy["League Actions Proxy"]
+
+      Routes --> AuthGuard --> LeagueProxy
+    end
+
+    %% Data platform layer
+    subgraph Data["Data Platform - Supabase"]
+      EdgeFunctions["Edge Functions\nleague-actions, sync-fd-data,\nsync-sportmonks-data, send-ingestion-alerts"]:::fn
+      Postgres[("Postgres")]
+      Cron["Scheduled Jobs\nAlert evaluation and notify"]
+
+      Cron --> EdgeFunctions
+      EdgeFunctions --> Postgres
+    end
+
+    %% External systems
+    subgraph External["External Systems"]
+      GoogleIdentity["Google Identity Toolkit"]
+      FirebaseAuth["Firebase Auth"]
+      FCM["Firebase Cloud Messaging"]
+      FootballData["football-data API"]
+      SportMonks["SportMonks API"]
+      Webhooks["Slack / Discord Webhooks"]
+    end
+
+    %% Cross-layer flows
+    Client -->|"Authenticated app requests"| Backend
+    Backend -->|"Service-role DB operations"| Data
+    Client -->|"Direct Supabase SDK reads/writes"| Data
+
+    FirebaseSDK --> FirebaseAuth
+    FirebaseSDK --> FCM
+    Backend -->|"Sign-up and sign-in exchange"| GoogleIdentity
+
+    EdgeFunctions --> FootballData
+    EdgeFunctions --> SportMonks
+    EdgeFunctions --> Webhooks
+
+    classDef fn fill:#E8F3FF,stroke:#175CD3,stroke-width:1.5px,color:#0F172A;

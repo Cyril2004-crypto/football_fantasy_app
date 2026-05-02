@@ -603,6 +603,41 @@ app.get(`${API_BASE}/stats/overall`, authRequired, (_req, res) => res.json({ dat
 app.get(`${API_BASE}/news`, (_req, res) => res.json({ data: [] }));
 app.get(`${API_BASE}/tips`, (_req, res) => res.json({ data: [] }));
 
+// Proxy endpoint to forward requests to Sportmonks (server-side) and
+// avoid browser CORS issues. Expects a `url` query param with the full
+// Sportmonks URL to fetch. The server will append the server-side
+// `SPORTMONKS_API_TOKEN` if not present.
+app.get(`${API_BASE}/proxy`, (req, res) => {
+  (async () => {
+    try {
+      const target = String(req.query.url || '').trim();
+      if (!target) return res.status(400).json({ message: 'Missing url query param' });
+
+      // Only allow forwarding to Sportmonks host for safety
+      const parsed = new URL(target);
+      const allowedHost = (process.env.SPORTMONKS_BASE_URL || 'api.sportmonks.com').replace(/^https?:\/\//, '');
+      if (!parsed.hostname.includes(allowedHost)) {
+        return res.status(400).json({ message: 'Target host not allowed' });
+      }
+
+      const apiToken = process.env.SPORTMONKS_API_TOKEN || '';
+      const params = parsed.searchParams;
+      if (apiToken && !params.has('api_token')) params.set('api_token', apiToken);
+
+      const fetchUrl = `${parsed.origin}${parsed.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(fetchUrl);
+      const contentType = response.headers.get('content-type') || 'application/json';
+      const text = await response.text();
+
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Content-Type', contentType);
+      return res.status(response.status).send(text);
+    } catch (error) {
+      return res.status(500).json({ message: error instanceof Error ? error.message : String(error) });
+    }
+  })();
+});
+
 app.use((req, res) => {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
 });
