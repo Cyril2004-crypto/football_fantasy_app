@@ -243,6 +243,22 @@ class _HomeTabScreenState extends State<HomeTabScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              child: _buildShortcutCard(
+                context,
+                title: AppStrings.stats,
+                subtitle: 'League leaders & discipline',
+                icon: Icons.bar_chart,
+                color: AppColors.primary,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const StatsScreen()),
+                  );
+                },
+              ),
+            ),
 
             // Quick Stats
             if (team != null)
