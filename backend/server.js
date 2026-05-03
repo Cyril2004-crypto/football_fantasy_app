@@ -597,8 +597,113 @@ app.get(`${API_BASE}/matches/upcoming`, authRequired, (_req, res) => res.json({ 
 app.get(`${API_BASE}/matches/completed`, authRequired, (_req, res) => res.json({ data: [] }));
 app.get(`${API_BASE}/matches/:id`, authRequired, (req, res) => res.json({ data: { id: req.params.id } }));
 
+const emptyStatsPayload = {
+  top_scorers: [],
+  top_assists: [],
+  clean_sheets: [],
+  most_yellow_cards: [],
+  most_red_cards: [],
+  totalPoints: 0
+};
+
+const buildLeaderboard = (rows, valueKey, limit = 5) => {
+  const totals = new Map();
+
+  for (const row of rows) {
+    const playerId = String(row?.player_id || '');
+    if (!playerId) continue;
+
+    const current = totals.get(playerId) || {
+      player_id: playerId,
+      name: row?.player_name || 'Unknown',
+      team: row?.team_name || '',
+      team_id: row?.team_id || null,
+      goals: 0,
+      assists: 0,
+      clean_sheets: 0,
+      yellow_cards: 0,
+      red_cards: 0
+    };
+
+    current.goals += Number(row?.goals || 0);
+    current.assists += Number(row?.assists || 0);
+    current.clean_sheets += Number(row?.clean_sheet ? 1 : 0);
+    current.yellow_cards += Number(row?.yellow_cards || 0);
+    current.red_cards += Number(row?.red_cards || 0);
+    totals.set(playerId, current);
+  }
+
+  return [...totals.values()]
+    .sort((a, b) => {
+      const diff = Number(b[valueKey] || 0) - Number(a[valueKey] || 0);
+      if (diff !== 0) return diff;
+      return String(a.name).localeCompare(String(b.name));
+    })
+    .slice(0, limit)
+    .map((item) => ({
+      name: item.name,
+      team: { name: item.team },
+      goals: item.goals,
+      assists: item.assists,
+      clean_sheets: item.clean_sheets,
+      yellow: item.yellow_cards,
+      red: item.red_cards
+    }));
+};
+
 app.get(`${API_BASE}/stats/gameweek`, authRequired, (_req, res) => res.json({ data: { gameweek: 1, points: 0 } }));
-app.get(`${API_BASE}/stats/overall`, authRequired, (_req, res) => res.json({ data: { totalPoints: 0 } }));
+app.get(`${API_BASE}/stats/overall`, authRequired, (req, res) => {
+  (async () => {
+    try {
+      if (!requireSupabase(res)) return;
+
+      const { data, error } = await supabaseAdmin
+        .from('fd_player_match_stats')
+        .select('season, player_id, team_id, goals, assists, clean_sheet, yellow_cards, red_cards, updated_at, player:fd_players(name), team:fd_teams(name)')
+        .order('season', { ascending: false })
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        return res.status(500).json({ message: error.message });
+      }
+
+      const rows = data ?? [];
+      if (rows.length === 0) {
+        return res.json({ data: emptyStatsPayload });
+      }
+
+      const latestSeason = rows[0]?.season;
+      const seasonRows = rows.filter((row) => String(row?.season || '') === String(latestSeason || ''));
+
+      const normalizeRow = (row) => ({
+        player_id: row.player_id,
+        player_name: row.player?.name || row.player_name || 'Unknown',
+        team_id: row.team_id,
+        team_name: row.team?.name || row.team_name || '',
+        goals: row.goals,
+        assists: row.assists,
+        clean_sheet: row.clean_sheet,
+        yellow_cards: row.yellow_cards,
+        red_cards: row.red_cards
+      });
+
+      const normalized = seasonRows.map(normalizeRow);
+
+      return res.json({
+        data: {
+          top_scorers: buildLeaderboard(normalized, 'goals'),
+          top_assists: buildLeaderboard(normalized, 'assists'),
+          clean_sheets: buildLeaderboard(normalized, 'clean_sheets'),
+          most_yellow_cards: buildLeaderboard(normalized, 'yellow_cards'),
+          most_red_cards: buildLeaderboard(normalized, 'red_cards'),
+          totalPoints: normalized.reduce((sum, row) => sum + Number(row.goals || 0) * 6 + Number(row.assists || 0) * 3, 0)
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({ message: error instanceof Error ? error.message : String(error) });
+    }
+  })();
+});
 
 app.get(`${API_BASE}/news`, (_req, res) => res.json({ data: [] }));
 app.get(`${API_BASE}/tips`, (_req, res) => res.json({ data: [] }));
