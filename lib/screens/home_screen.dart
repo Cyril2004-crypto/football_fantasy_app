@@ -80,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),
-            label: 'Stats',
+            label: AppStrings.stats,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
