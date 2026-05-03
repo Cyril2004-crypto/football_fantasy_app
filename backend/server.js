@@ -651,51 +651,125 @@ const buildLeaderboard = (rows, valueKey, limit = 5) => {
     }));
 };
 
+const aggregateStatRows = (rows) => {
+  const totals = new Map();
+
+  for (const row of rows) {
+    const playerId = String(row?.player_id || '');
+    if (!playerId) continue;
+
+    const current = totals.get(playerId) || {
+      player_id: playerId,
+      player_name: row?.player_name || 'Unknown',
+      team_id: row?.team_id || null,
+      team_name: row?.team_name || '',
+      goals: 0,
+      assists: 0,
+      clean_sheet: 0,
+      yellow_cards: 0,
+      red_cards: 0
+    };
+
+    current.goals += Number(row?.goals || 0);
+    current.assists += Number(row?.assists || 0);
+    current.clean_sheet += Number(row?.clean_sheet ? 1 : 0);
+    current.yellow_cards += Number(row?.yellow_cards || 0);
+    current.red_cards += Number(row?.red_cards || 0);
+
+    if (!current.team_name && row?.team_name) {
+      current.team_name = row.team_name;
+    }
+
+    totals.set(playerId, current);
+  }
+
+  return [...totals.values()];
+};
+
+const mapLeaderboardEntry = (item) => ({
+  name: item.player_name,
+  team: { name: item.team_name },
+  goals: item.goals,
+  assists: item.assists,
+  clean_sheets: item.clean_sheet,
+  yellow: item.yellow_cards,
+  red: item.red_cards
+});
+
 app.get(`${API_BASE}/stats/gameweek`, authRequired, (_req, res) => res.json({ data: { gameweek: 1, points: 0 } }));
 app.get(`${API_BASE}/stats/overall`, authRequired, (req, res) => {
   (async () => {
     try {
       if (!requireSupabase(res)) return;
 
-      const { data, error } = await supabaseAdmin
+      const matchStatsQuery = supabaseAdmin
         .from('fd_player_match_stats')
         .select('season, player_id, team_id, goals, assists, clean_sheet, yellow_cards, red_cards, updated_at, player:fd_players(name), team:fd_teams(name)')
         .order('season', { ascending: false })
         .order('updated_at', { ascending: false });
 
-      if (error) {
-        return res.status(500).json({ message: error.message });
+      const gameweekPointsQuery = supabaseAdmin
+        .from('fd_player_gameweek_points')
+        .select('season, player_id, goals, assists, clean_sheet, yellow_cards, red_cards, updated_at, player:fd_players(name, team_id, team:fd_teams(name))')
+        .order('season', { ascending: false })
+        .order('updated_at', { ascending: false });
+
+      const [matchStatsResult, gameweekPointsResult] = await Promise.all([
+        matchStatsQuery,
+        gameweekPointsQuery
+      ]);
+
+      const matchStatsError = matchStatsResult.error;
+      const gameweekPointsError = gameweekPointsResult.error;
+
+      if (matchStatsError && gameweekPointsError) {
+        return res.status(500).json({
+          message: `${matchStatsError.message}; ${gameweekPointsError.message}`
+        });
       }
 
-      const rows = data ?? [];
-      if (rows.length === 0) {
-        return res.json({ data: emptyStatsPayload });
-      }
-
-      const latestSeason = rows[0]?.season;
-      const seasonRows = rows.filter((row) => String(row?.season || '') === String(latestSeason || ''));
-
-      const normalizeRow = (row) => ({
+      const matchStatsRows = (matchStatsResult.data ?? []).map((row) => ({
+        season: row.season,
         player_id: row.player_id,
-        player_name: row.player?.name || row.player_name || 'Unknown',
         team_id: row.team_id,
-        team_name: row.team?.name || row.team_name || '',
+        player_name: row.player?.name || 'Unknown',
+        team_name: row.team?.name || '',
         goals: row.goals,
         assists: row.assists,
         clean_sheet: row.clean_sheet,
         yellow_cards: row.yellow_cards,
         red_cards: row.red_cards
-      });
+      }));
 
-      const normalized = seasonRows.map(normalizeRow);
+      const gameweekRows = (gameweekPointsResult.data ?? []).map((row) => ({
+        season: row.season,
+        player_id: row.player_id,
+        team_id: row.player?.team_id || null,
+        player_name: row.player?.name || 'Unknown',
+        team_name: row.player?.team?.name || '',
+        goals: row.goals,
+        assists: row.assists,
+        clean_sheet: row.clean_sheet,
+        yellow_cards: row.yellow_cards,
+        red_cards: row.red_cards
+      }));
+
+      const allRows = [...matchStatsRows, ...gameweekRows];
+      if (allRows.length === 0) {
+        return res.json({ data: emptyStatsPayload });
+      }
+
+      const latestSeason = allRows[0]?.season;
+      const seasonRows = allRows.filter((row) => String(row?.season || '') === String(latestSeason || ''));
+      const normalized = aggregateStatRows(seasonRows);
 
       return res.json({
         data: {
-          top_scorers: buildLeaderboard(normalized, 'goals'),
-          top_assists: buildLeaderboard(normalized, 'assists'),
-          clean_sheets: buildLeaderboard(normalized, 'clean_sheets'),
-          most_yellow_cards: buildLeaderboard(normalized, 'yellow_cards'),
-          most_red_cards: buildLeaderboard(normalized, 'red_cards'),
+          top_scorers: buildLeaderboard(normalized, 'goals').map(mapLeaderboardEntry),
+          top_assists: buildLeaderboard(normalized, 'assists').map(mapLeaderboardEntry),
+          clean_sheets: buildLeaderboard(normalized, 'clean_sheets').map(mapLeaderboardEntry),
+          most_yellow_cards: buildLeaderboard(normalized, 'yellow_cards').map(mapLeaderboardEntry),
+          most_red_cards: buildLeaderboard(normalized, 'red_cards').map(mapLeaderboardEntry),
           totalPoints: normalized.reduce((sum, row) => sum + Number(row.goals || 0) * 6 + Number(row.assists || 0) * 3, 0)
         }
       });
