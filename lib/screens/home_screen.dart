@@ -1447,30 +1447,6 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
     return fallback;
   }
 
-  String? _resolveParticipantRole(
-    Map<String, dynamic> scoreMap, {
-    required String? participantId,
-    required String? homeParticipantId,
-    required String? awayParticipantId,
-  }) {
-    if (participantId != null) {
-      if (participantId == homeParticipantId) return 'home';
-      if (participantId == awayParticipantId) return 'away';
-    }
-
-    final participant = scoreMap['participant'];
-    if (participant is Map<String, dynamic>) {
-      final location = _readString(participant, const [
-        'location',
-        'type',
-        'side',
-      ])?.toLowerCase();
-      if (location == 'home' || location == 'local') return 'home';
-      if (location == 'away' || location == 'visitor') return 'away';
-    }
-    return null;
-  }
-
   int _scorePriority(String description, Map<String, dynamic> scoreMap) {
     if (description.contains('current') ||
         description.contains('live') ||
