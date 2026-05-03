@@ -20,7 +20,6 @@ class AppStrings {
   static const String transfers = 'Transfers';
   static const String leagues = 'Leagues';
   static const String fixtures = 'Fixtures';
-  static const String stats = 'Stats';
   static const String profile = 'Profile';
 
   // Team
