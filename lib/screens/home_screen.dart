@@ -30,6 +30,7 @@ import 'news_screen.dart';
 import 'ops_admin_screen.dart';
 import 'team_analytics_screen.dart';
 import 'fixture_details_screen.dart';
+import 'stats_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -46,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const TeamStatusScreen(),
     const LeaguesTabScreen(),
     const FixturesTabScreen(),
+    const StatsScreen(),
     const ProfileTabScreen(),
   ];
 
@@ -75,6 +77,10 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: AppStrings.fixtures,
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: 'Stats',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
