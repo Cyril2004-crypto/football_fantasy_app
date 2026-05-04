@@ -1212,7 +1212,9 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
       final row = _findSportmonksFixtureForMatch(match);
       if (row == null) {
         if (kDebugMode) {
-          debugPrint('No Sportmonks row found for ${match.homeTeamName} vs ${match.awayTeamName}');
+          debugPrint(
+            'No Sportmonks row found for ${match.homeTeamName} vs ${match.awayTeamName}',
+          );
         }
         return match;
       }
@@ -1221,7 +1223,9 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
       final score = _scoreFromSportmonksRow(row);
 
       if (kDebugMode) {
-        debugPrint('Matched ${match.homeTeamName} vs ${match.awayTeamName} - Sportmonks scores: ${score.$1} - ${score.$2}');
+        debugPrint(
+          'Matched ${match.homeTeamName} vs ${match.awayTeamName} - Sportmonks scores: ${score.$1} - ${score.$2}',
+        );
       }
 
       return Match(
@@ -1330,8 +1334,12 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
         debugPrint('=== SCORE EXTRACTION DEBUG ===');
         debugPrint('Row ID: ${row['id']}');
         debugPrint('Participants: ${participants.length}');
-        if (homeParticipantId != null) debugPrint('  Home ID: $homeParticipantId');
-        if (awayParticipantId != null) debugPrint('  Away ID: $awayParticipantId');
+        if (homeParticipantId != null) {
+          debugPrint('  Home ID: $homeParticipantId');
+        }
+        if (awayParticipantId != null) {
+          debugPrint('  Away ID: $awayParticipantId');
+        }
         debugPrint('Scores array length: ${scores.length}');
         if (scores.isNotEmpty) {
           debugPrint('First score entry: ${jsonEncode(scores.first)}');
@@ -1355,13 +1363,15 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
       final goals = scoreObj is Map<String, dynamic>
           ? _readInt(scoreObj, const ['goals'])
           : null;
-      
+
       if (kDebugMode) {
         try {
-          debugPrint('  Score item - scoreObj type: ${scoreObj.runtimeType}, goals: $goals');
+          debugPrint(
+            '  Score item - scoreObj type: ${scoreObj.runtimeType}, goals: $goals',
+          );
         } catch (_) {}
       }
-      
+
       if (goals == null) {
         continue;
       }
@@ -1369,17 +1379,19 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
       final desc =
           (_readString(item, const ['description', 'type', 'name']) ?? '')
               .toLowerCase();
-      
+
       // Get participant info directly from score object
-      final scoreParticipant = 
+      final scoreParticipant =
           _readString(scoreObj, const ['participant']) ?? '';
-      
+
       if (kDebugMode) {
         try {
-          debugPrint('    desc: $desc, scoreParticipant: $scoreParticipant, goals: $goals');
+          debugPrint(
+            '    desc: $desc, scoreParticipant: $scoreParticipant, goals: $goals',
+          );
         } catch (_) {}
       }
-      
+
       final priority = _scorePriority(desc, item);
 
       // Use score.participant field which directly indicates "home" or "away"
@@ -1390,7 +1402,9 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
           bestHomePriority = priority;
           homeScore = goals;
           if (kDebugMode) {
-            debugPrint('      Setting homeScore=$goals with priority=$priority');
+            debugPrint(
+              '      Setting homeScore=$goals with priority=$priority',
+            );
           }
         }
       } else if (scoreParticipant == 'away' ||
@@ -1400,14 +1414,18 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
           bestAwayPriority = priority;
           awayScore = goals;
           if (kDebugMode) {
-            debugPrint('      Setting awayScore=$goals with priority=$priority');
+            debugPrint(
+              '      Setting awayScore=$goals with priority=$priority',
+            );
           }
         }
       }
     }
 
     if (kDebugMode) {
-      debugPrint('Extracted scores - Home: $homeScore (priority: $bestHomePriority), Away: $awayScore (priority: $bestAwayPriority)');
+      debugPrint(
+        'Extracted scores - Home: $homeScore (priority: $bestHomePriority), Away: $awayScore (priority: $bestAwayPriority)',
+      );
     }
 
     return (homeScore, awayScore);
@@ -1745,8 +1763,8 @@ class _FixturesTabScreenState extends State<FixturesTabScreen> {
                             (match.homeScore != null && match.awayScore != null)
                             ? '${match.homeScore} - ${match.awayScore}'
                             : match.status == MatchStatus.completed
-                                ? '${match.homeScore ?? 0} - ${match.awayScore ?? 0}'
-                                : 'vs';
+                            ? '${match.homeScore ?? 0} - ${match.awayScore ?? 0}'
+                            : 'vs';
                         return Card(
                           child: ListTile(
                             leading: CircleAvatar(
